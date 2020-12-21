@@ -1,0 +1,33 @@
+allprojects {
+    repositories {
+        google()
+        jcenter()
+        mavenCentral()
+        maven {
+            url "https://builder.helios-social.eu/repository/helios-repository/"
+            credentials {
+                username = "helios"
+                password = "h3l10sN3xu\$"
+            }
+        }
+        maven { url "https://jitpack.io" }
+    }
+}
+
+buildscript {
+    ext.kotlin_version = '1.4.10'
+    repositories {
+        google()
+        jcenter()
+        mavenCentral()
+        maven {
+            url 'https://plugins.gradle.org/m2/'
+        }
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:3.5.4'
+        classpath 'ru.vyarus:gradle-animalsniffer-plugin:1.5.0'
+        classpath files('libs/gradle-witness.jar')
+    }
+}

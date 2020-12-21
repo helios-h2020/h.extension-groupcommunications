@@ -1,0 +1,5 @@
+include ':groupcommunications'
+include ':groupcommunications-api'
+include ':groupcommunications-db'
+include ':groupcommunications-utils'
+rootProject.name = "groupcommunications"
