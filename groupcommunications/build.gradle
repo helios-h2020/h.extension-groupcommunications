@@ -27,7 +27,6 @@ android {
 }
 
 dependencies {
-	implementation fileTree(dir: "libs", include: ["*.jar"])
 	implementation project(path: ':groupcommunications-api')
 	implementation project(path: ':groupcommunications-db', configuration: 'default')
 
