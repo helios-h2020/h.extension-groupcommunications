@@ -334,7 +334,7 @@ public class ForumManagerImpl implements ForumManager<Transaction> {
 	}
 
 	@Override
-	public void addForumMember(Transaction txn,
+	public void addForumMembers(Transaction txn,
 			Collection<ForumMember> forumMembers)
 			throws DbException {
 		db.addForumMembers(txn, forumMembers);

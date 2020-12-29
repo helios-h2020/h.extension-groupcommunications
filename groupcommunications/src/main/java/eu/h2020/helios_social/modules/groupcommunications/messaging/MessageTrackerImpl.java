@@ -122,7 +122,7 @@ public class MessageTrackerImpl implements MessageTracker<Transaction> {
 	public void resetGroupCount(Transaction txn, String groupId,
 			int msgCount,
 			int unreadCount) throws DbException {
-
+		//TODO
 	}
 
 	private void storeGroupCount(Transaction txn, String
