@@ -107,7 +107,6 @@ public class ConversationManagerImpl implements
 		} finally {
 			db.endTransaction(txn);
 		}
-		LOG.info("GROUP: " + group);
 		return group;
 	}
 
