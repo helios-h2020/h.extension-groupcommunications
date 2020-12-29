@@ -27,8 +27,9 @@ android {
 }
 
 dependencies {
-	implementation project(path: ':groupcommunications-api')
-	implementation project(path: ':groupcommunications-db', configuration: 'default')
+	implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.3'
+	implementation 'eu.h2020.helios_social.modules.groupcommunications-db:groupcommunications-db:1.0.1'
+	implementation project(path: ':groupcommunications-utils', configuration: 'default')
 
 	implementation 'org.jetbrains:annotations:15.0'
 	def work_version = "2.4.0"
@@ -51,6 +52,8 @@ dependencies {
 	implementation "androidx.work:work-runtime:$work_version"
 	implementation "com.google.dagger:dagger:2.24"
 	implementation 'com.github.helios-h2020:h.core-SocialEgoNetwork:1.1.0'
+	implementation 'com.github.helios-h2020:h.extension-SocialGraphMining:1.0.3'
+
 	implementation 'androidx.appcompat:appcompat:1.1.0'
 	implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
 	implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'

@@ -9,6 +9,7 @@ import eu.h2020.helios_social.happ.helios.talk.api.crypto.SecretKey;
 import eu.h2020.helios_social.happ.helios.talk.api.identity.Identity;
 import eu.h2020.helios_social.happ.helios.talk.api.nullsafety.NotNullByDefault;
 import eu.h2020.helios_social.happ.helios.talk.api.settings.Settings;
+import eu.h2020.helios_social.modules.groupcommunications.api.event.HeliosEvent;
 import eu.h2020.helios_social.modules.groupcommunications.api.forum.ForumMember;
 import eu.h2020.helios_social.modules.groupcommunications.api.forum.ForumMemberRole;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupType;
@@ -80,7 +81,10 @@ public interface DatabaseComponent extends TransactionManager {
 	void addContact(Transaction transaction, Contact contact)
 			throws DbException;
 
-	void addPendingContact(Transaction transaction, PendingContact p)
+    void addEvent(Transaction transaction, HeliosEvent event)
+            throws DbException;
+
+    void addPendingContact(Transaction transaction, PendingContact p)
 			throws DbException;
 
 	boolean containsContact(Transaction transaction, ContactId contactId)
@@ -89,8 +93,11 @@ public interface DatabaseComponent extends TransactionManager {
 	boolean containsContext(Transaction transaction, String contextId)
 			throws DbException;
 
+	boolean containsEvent(Transaction transaction, String eventId)
+            throws DbException;
+
 	boolean containsPendingContact(Transaction transaction,
-			ContactId pendingContactId) throws DbException;
+								   ContactId pendingContactId) throws DbException;
 
 	boolean containsMessage(Transaction transaction, String messageId)
 			throws DbException;
@@ -115,8 +122,14 @@ public interface DatabaseComponent extends TransactionManager {
 	Contact getContact(Transaction transaction,
 			ContactId contactId) throws DbException;
 
+	HeliosEvent getEvent(Transaction transaction, String eventId)
+			throws DbException;
+
+	Collection<HeliosEvent> getEvents(Transaction transaction, String contextId)
+            throws DbException;
+
 	ContactId getContactIdByGroupId(Transaction transaction,
-			String groupId)
+									String groupId)
 			throws DbException;
 
 	Group getContactGroup(Transaction transaction, ContactId contactId,
@@ -173,6 +186,9 @@ public interface DatabaseComponent extends TransactionManager {
 
 	void removeContact(Transaction transaction, ContactId c)
 			throws DbException;
+
+	void removeEvent(Transaction transaction, String eventId)
+            throws DbException;
 
 	void addContext(Transaction transaction, DBContext c)
 			throws DbException;
