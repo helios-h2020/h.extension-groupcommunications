@@ -16,6 +16,8 @@ allprojects {
 
 buildscript {
     ext.kotlin_version = '1.4.10'
+    ext.work_version = '2.4.0'
+    ext.room_version = '2.2.6'
     repositories {
         google()
         jcenter()
