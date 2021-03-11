@@ -1,19 +1,20 @@
 package eu.h2020.helios_social.modules.groupcommunications.forum.mebership;
 
-import java.lang.reflect.Member;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Logger;
 
 import javax.inject.Inject;
 
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseComponent;
-import eu.h2020.helios_social.happ.helios.talk.api.db.Transaction;
-import eu.h2020.helios_social.happ.helios.talk.api.identity.Identity;
-import eu.h2020.helios_social.happ.helios.talk.api.identity.IdentityManager;
-import eu.h2020.helios_social.happ.helios.talk.api.lifecycle.IoExecutor;
-import eu.h2020.helios_social.happ.helios.talk.api.system.Clock;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.Identity;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.IdentityManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.IoExecutor;
+import eu.h2020.helios_social.modules.groupcommunications_utils.system.Clock;
 import eu.h2020.helios_social.modules.groupcommunications.api.CommunicationManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.FormatException;
@@ -28,6 +29,8 @@ import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerId;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.FORUM_MEMBERSHIP_PROTOCOL;
 
 public class ForumMembershipManagerImpl implements ForumMembershipManager {
+    private static final Logger LOG =
+            Logger.getLogger(ForumMembershipManagerImpl.class.getName());
 
     private final DatabaseComponent db;
     private final ForumManager forumManager;
@@ -93,10 +96,12 @@ public class ForumMembershipManagerImpl implements ForumMembershipManager {
                 }
             } else {
                 membershipInfo.setAction(MembershipInfo.Action.LEAVE_FORUM);
-                for (String moderator : forum.getModerators()) {
+                for (String moderator : (List<String>) forum.getModerators()) {
                     notify(new PeerId(moderator), membershipInfo);
                 }
             }
+            communicationManager.unsubscribe(forum.getId(), forum.getPassword());
+            forumManager.removeForum(txn, forum.getId());
             db.commitTransaction(txn);
         } finally {
             db.endTransaction(txn);
@@ -125,8 +130,8 @@ public class ForumMembershipManagerImpl implements ForumMembershipManager {
             //only MODERATORS and ADMINISTRATORS have access to member lists and can
             // change roles of forum members, additionally if updated Role equals to
             // previous no changes are performed to the member lists
-            if (!personalRole.equals(ForumMemberRole.MODERATOR) ||
-                    !personalRole.equals(ForumMemberRole.ADMINISTRATOR) ||
+            if (!(personalRole.equals(ForumMemberRole.MODERATOR) ||
+                    personalRole.equals(ForumMemberRole.ADMINISTRATOR)) ||
                     forumMember.getRole().equals(updatedRole)) {
                 return;
             }
@@ -152,8 +157,8 @@ public class ForumMembershipManagerImpl implements ForumMembershipManager {
             if ((updatedRole == ForumMemberRole.MODERATOR &&
                     forumMember.getRole() != ForumMemberRole.ADMINISTRATOR) ||
                     (updatedRole == ForumMemberRole.ADMINISTRATOR &&
-                            forumMember.getRole() !=
-                                    ForumMemberRole.MODERATOR)) {
+                            forumMember.getRole() != ForumMemberRole.MODERATOR)) {
+                forumManager.addModerator(forumMember.getGroupId(), forumMember.getPeerId().getId());
                 //notify members to add moderator
                 Collection<ForumMember> forumMembers =
                         forumManager.getForumMembers(txn, forum.getId());
@@ -161,8 +166,7 @@ public class ForumMembershipManagerImpl implements ForumMembershipManager {
                 for (ForumMember member : forumMembers) {
                     if (member.getPeerId().getId()
                             .equals(forumMember.getPeerId().getId())) continue;
-                    membershipInfo
-                            .setAction(MembershipInfo.Action.ADD_MODERATOR);
+                    membershipInfo.setAction(MembershipInfo.Action.ADD_MODERATOR);
                     notify(member.getPeerId(), membershipInfo);
                 }
                 membershipInfo.setForumMemberList(forumMembers);
@@ -173,9 +177,10 @@ public class ForumMembershipManagerImpl implements ForumMembershipManager {
                 Collection<ForumMember> forumMembers =
                         forumManager.getForumMembers(txn, forum.getId());
                 //notify members to remove moderator
-                membershipInfo
-                        .setAction(MembershipInfo.Action.REMOVE_MODERATOR);
+                membershipInfo.setAction(MembershipInfo.Action.REMOVE_MODERATOR);
                 for (ForumMember member : forumMembers) {
+                    if (member.getPeerId().getId().equals(identityManager.getIdentity().getNetworkId()))
+                        continue;
                     notify(member.getPeerId(), membershipInfo);
                 }
             } else {
@@ -184,15 +189,15 @@ public class ForumMembershipManagerImpl implements ForumMembershipManager {
                 //notify moderators for the change
                 membershipInfo.setAction(MembershipInfo.Action.UPDATE_ROLE);
                 for (String moderator : moderators) {
+                    if (moderator.equals(identityManager.getIdentity().getNetworkId())) continue;
                     notify(new PeerId(moderator), membershipInfo);
                 }
-
+                notify(forumMember.getPeerId(), membershipInfo);
             }
             db.commitTransaction(txn);
         } finally {
             db.endTransaction(txn);
         }
-
     }
 
     private void notify(PeerId peerId, MembershipInfo membershipInfo) {
