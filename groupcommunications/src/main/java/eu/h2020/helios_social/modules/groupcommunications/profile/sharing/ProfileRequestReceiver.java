@@ -14,9 +14,9 @@ import javax.inject.Inject;
 
 import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosMessagingReceiver;
 import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosNetworkAddress;
-import eu.h2020.helios_social.happ.helios.talk.api.event.EventBus;
-import eu.h2020.helios_social.happ.helios.talk.api.sync.event.ProfileReceivedEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.sync.event.ProfileRequestReceivedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ProfileReceivedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ProfileRequestReceivedEvent;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;

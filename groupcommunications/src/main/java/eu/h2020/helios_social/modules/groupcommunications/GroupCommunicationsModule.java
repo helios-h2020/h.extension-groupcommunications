@@ -14,7 +14,7 @@ import eu.h2020.helios_social.core.contextualegonetwork.listeners.CreationListen
 import eu.h2020.helios_social.core.contextualegonetwork.listeners.LoggingListener;
 import eu.h2020.helios_social.core.contextualegonetwork.listeners.RecoveryListener;
 import eu.h2020.helios_social.core.contextualegonetwork.storage.LegacyStorage;
-import eu.h2020.helios_social.happ.helios.talk.api.lifecycle.LifecycleManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.LifecycleManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.CommunicationManager;
 import eu.h2020.helios_social.modules.groupcommunications.contact.ContactModule;
 import eu.h2020.helios_social.modules.groupcommunications.contact.connection.ConnectionRequestReceiver;
@@ -101,11 +101,6 @@ public class GroupCommunicationsModule {
     ContextualEgoNetwork provideContextualEgoNetwork(
             InternalStorageConfig config) {
         Utils.development = true;
-		/*ContextualEgoNetwork egoNetwork =
-				ContextualEgoNetwork.createOrLoad(
-						config.getStorageDir().getPath().toString() +
-								File.separator, "ego", null
-				);*/
         ContextualEgoNetwork egoNetwork = ContextualEgoNetwork.createOrLoad(
                 new LegacyStorage(config.getStorageDir().getPath().toString() +
                         File.separator), "ego", "null");

@@ -2,8 +2,8 @@ package eu.h2020.helios_social.modules.groupcommunications.profile;
 
 import javax.inject.Inject;
 
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseComponent;
-import eu.h2020.helios_social.happ.helios.talk.api.db.Transaction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
 import eu.h2020.helios_social.modules.groupcommunications.api.profile.Profile;
 import eu.h2020.helios_social.modules.groupcommunications.api.profile.ProfileManager;

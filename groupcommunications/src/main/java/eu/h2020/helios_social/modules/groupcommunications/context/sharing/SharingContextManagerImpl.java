@@ -10,12 +10,12 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
-import eu.h2020.helios_social.happ.helios.talk.api.context.ContextInvitationAutoResponseEvent;
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseComponent;
-import eu.h2020.helios_social.happ.helios.talk.api.db.Transaction;
-import eu.h2020.helios_social.happ.helios.talk.api.event.Event;
-import eu.h2020.helios_social.happ.helios.talk.api.event.EventBus;
-import eu.h2020.helios_social.happ.helios.talk.api.event.EventListener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.context.ContextInvitationAutoResponseEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
 import eu.h2020.helios_social.modules.groupcommunications.api.CommunicationManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.Group;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.connection.ConnectionInfo;
