@@ -5,10 +5,11 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
-import eu.h2020.helios_social.happ.helios.talk.api.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactManager;
+import eu.h2020.helios_social.modules.groupcommunications.api.contact.PendingContactType;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
-import eu.h2020.helios_social.happ.helios.talk.api.db.Transaction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.Contact;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.PendingContact;
@@ -153,6 +154,32 @@ public class ContactManagerImpl implements ContactManager {
         Collection<PendingContact> pendingContacts = null;
         try {
             pendingContacts = db.getPendingContacts(txn);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return pendingContacts;
+    }
+
+    @Override
+    public int pendingIncomingConnectionRequests() throws DbException {
+        Transaction txn = db.startTransaction(true);
+        int pendingContacts = 0;
+        try {
+            pendingContacts = db.countPendingContacts(txn, PendingContactType.INCOMING);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return pendingContacts;
+    }
+
+    @Override
+    public int pendingOutgoingConnectionRequests() throws DbException {
+        Transaction txn = db.startTransaction(true);
+        int pendingContacts = 0;
+        try {
+            pendingContacts = db.countPendingContacts(txn, PendingContactType.OUTGOING);
             db.commitTransaction(txn);
         } finally {
             db.endTransaction(txn);
