@@ -31,82 +31,82 @@ import static eu.h2020.helios_social.modules.groupcommunications.api.contact.con
 import static java.util.logging.Logger.getLogger;
 
 public class ConnectionRequestReceiver
-		implements HeliosMessagingReceiver {
-	private static final Logger LOG =
-			getLogger(ConnectionRequestReceiver.class.getName());
+        implements HeliosMessagingReceiver {
+    private static final Logger LOG =
+            getLogger(ConnectionRequestReceiver.class.getName());
 
-	private final ContactManager contactManager;
-	private final PendingContactFactory pendingContactFactory;
-	private final ConversationManager conversationManager;
+    private final ContactManager contactManager;
+    private final PendingContactFactory pendingContactFactory;
+    private final ConversationManager conversationManager;
 
-	@Inject
-	public ConnectionRequestReceiver(ContactManager contactManager,
-			ConversationManager conversationManager,
-			PendingContactFactory pendingContactFactory) {
-		this.contactManager = contactManager;
-		this.pendingContactFactory = pendingContactFactory;
-		this.conversationManager = conversationManager;
-	}
+    @Inject
+    public ConnectionRequestReceiver(ContactManager contactManager,
+                                     ConversationManager conversationManager,
+                                     PendingContactFactory pendingContactFactory) {
+        this.contactManager = contactManager;
+        this.pendingContactFactory = pendingContactFactory;
+        this.conversationManager = conversationManager;
+    }
 
-	@Override
-	public void receiveMessage(
-			@NotNull HeliosNetworkAddress heliosNetworkAddress,
-			@NotNull String protocolId,
-			@NotNull FileDescriptor fileDescriptor) {
-		if (!protocolId.equals(CONNECTIONS_RECEIVER_ID)) return;
-		ByteArrayOutputStream ba = new ByteArrayOutputStream();
-		try (FileInputStream fileInputStream = new FileInputStream(
-				fileDescriptor)) {
-			int byteRead;
-			while ((byteRead = fileInputStream.read()) != -1) {
-				ba.write(byteRead);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+    @Override
+    public void receiveMessage(
+            @NotNull HeliosNetworkAddress heliosNetworkAddress,
+            @NotNull String protocolId,
+            @NotNull FileDescriptor fileDescriptor) {
+        if (!protocolId.equals(CONNECTIONS_RECEIVER_ID)) return;
+        ByteArrayOutputStream ba = new ByteArrayOutputStream();
+        try (FileInputStream fileInputStream = new FileInputStream(
+                fileDescriptor)) {
+            int byteRead;
+            while ((byteRead = fileInputStream.read()) != -1) {
+                ba.write(byteRead);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-		receiveMessage(heliosNetworkAddress, protocolId, ba.toByteArray());
-	}
+        receiveMessage(heliosNetworkAddress, protocolId, ba.toByteArray());
+    }
 
-	@Override
-	public void receiveMessage(
-			@NotNull HeliosNetworkAddress heliosNetworkAddress,
-			@NotNull String protocolId, @NotNull byte[] data) {
-		if (!protocolId.equals(CONNECTIONS_RECEIVER_ID)) return;
-		String stringMessage = new String(data, StandardCharsets.UTF_8);
-		LOG.info(CONNECTIONS_RECEIVER_ID + ": " + stringMessage);
-		ConnectionInfo connectionInfo =
-				new Gson().fromJson(stringMessage, ConnectionInfo.class);
-		try {
-			PendingContact pendingContact = contactManager.getPendingContact(
-					new ContactId(heliosNetworkAddress.getNetworkId()));
-			if (pendingContact == null && connectionInfo.getAlias() != null) {
-				pendingContact = pendingContactFactory
-						.createIncomingPendingContact(
-								heliosNetworkAddress.getNetworkId(),
-								connectionInfo);
-				contactManager.addPendingContact(pendingContact);
-			} else if (pendingContact.getPendingContactType().equals(
-					PendingContactType.OUTGOING) &&
-					connectionInfo.getAlias() != null) {
-				ContactId contactId =
-						new ContactId(heliosNetworkAddress.getNetworkId());
+    @Override
+    public void receiveMessage(
+            @NotNull HeliosNetworkAddress heliosNetworkAddress,
+            @NotNull String protocolId, @NotNull byte[] data) {
+        if (!protocolId.equals(CONNECTIONS_RECEIVER_ID)) return;
+        String stringMessage = new String(data, StandardCharsets.UTF_8);
+        LOG.info(CONNECTIONS_RECEIVER_ID + ": " + stringMessage);
+        ConnectionInfo connectionInfo =
+                new Gson().fromJson(stringMessage, ConnectionInfo.class);
+        try {
+            PendingContact pendingContact = contactManager.getPendingContact(
+                    new ContactId(heliosNetworkAddress.getNetworkId()));
+            if (pendingContact == null && connectionInfo.getAlias() != null) {
+                pendingContact = pendingContactFactory
+                        .createIncomingPendingContact(
+                                heliosNetworkAddress.getNetworkId(),
+                                connectionInfo);
+                contactManager.addPendingContact(pendingContact);
+            } else if (pendingContact.getPendingContactType().equals(
+                    PendingContactType.OUTGOING) &&
+                    connectionInfo.getAlias() != null) {
+                ContactId contactId =
+                        new ContactId(heliosNetworkAddress.getNetworkId());
 
-				contactManager.addContact(new Contact(contactId,
-						connectionInfo.getAlias()));
-				Group group = new Group(connectionInfo.getGroupId(),
-						connectionInfo.getContextId(),
-						GroupType.PrivateConversation);
-				conversationManager.addContactGroup(contactId, group);
-				contactManager.deletePendingContact(pendingContact.getId());
-			} else if (pendingContact.getPendingContactType().equals(
-					PendingContactType.OUTGOING) &&
-					connectionInfo.getAlias() == null) {
-				contactManager.deletePendingContact(pendingContact.getId());
-			}
-		} catch (DbException e) {
-			e.printStackTrace();
-		}
+                contactManager.addContact(new Contact(contactId,
+                        connectionInfo.getAlias(), connectionInfo.getProfilePicture()));
+                Group group = new Group(connectionInfo.getGroupId(),
+                        connectionInfo.getContextId(),
+                        GroupType.PrivateConversation);
+                conversationManager.addContactGroup(contactId, group);
+                contactManager.deletePendingContact(pendingContact.getId());
+            } else if (pendingContact.getPendingContactType().equals(
+                    PendingContactType.OUTGOING) &&
+                    connectionInfo.getAlias() == null) {
+                contactManager.deletePendingContact(pendingContact.getId());
+            }
+        } catch (DbException e) {
+            e.printStackTrace();
+        }
 
-	}
+    }
 }
