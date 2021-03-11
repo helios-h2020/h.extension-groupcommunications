@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--Profiling Options -->
+    <string name="COARSE">Coarse Interest Profile</string>
+    <string name="FINE">Fine Interest Profile</string>
+
+    <!--Profiling strings -->
+    <string name="profiling_title">helios. TALK: Profiler</string>
+    <string name="profiling_desc">Analyzing Collection of Images from your device</string>
+    <string name="cancel">cancel</string>
+    <string name="profiling_info">Content Aware Profiling Module runs as a foreground service when the user charging its phone. The profiler processes images in batches of 500 and intermediate calculated results can be shown below before completion. The intermediate and final results are stored in the contextual ego network. Select the algorithm you want to run and request the profiler to start the process. </string>
+
+</resources>
