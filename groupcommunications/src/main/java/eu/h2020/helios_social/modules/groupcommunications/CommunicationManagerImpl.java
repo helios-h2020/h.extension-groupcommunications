@@ -6,6 +6,7 @@ import android.content.Context;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -44,7 +45,7 @@ import kotlin.Unit;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.APP_TAG;
 import static java.util.logging.Logger.getLogger;
 
-public class CommunicationManagerImpl
+class CommunicationManagerImpl
         implements CommunicationManager<HeliosMessagingReceiver>, Service,
         LifecycleManager.OpenDatabaseHook {
 
@@ -113,10 +114,20 @@ public class CommunicationManagerImpl
         heliosMessaging.stop();
     }
 
-    public void addDirectMessageReceiver(String protocolId,
-                                         HeliosMessagingReceiver messagingReceiver) {
+    public void addReceiver(String protocolId,
+                            HeliosMessagingReceiver messagingReceiver) {
         heliosMessaging.getDirectMessaging()
                 .addReceiver(protocolId, messagingReceiver);
+    }
+
+    @Override
+    public List<ContactId> getOnlineContacts(Collection<ContactId> contactIds) {
+        throw new UnsupportedOperationException("Not yet supported");
+    }
+
+    @Override
+    public List<PeerId> getOnlinePeers(Collection<PeerId> peerIds) {
+        throw new UnsupportedOperationException("Not yet supported");
     }
 
     @Override
@@ -196,6 +207,11 @@ public class CommunicationManagerImpl
     @Override
     public void unsubscribe(String groupId, String password) {
         heliosMessaging.unsubscribe(new HeliosTopic(groupId, password));
+    }
+
+    @Override
+    public void sendOnlineStatusToAllContacts(long delay) {
+        throw new UnsupportedOperationException("Not yet supported");
     }
 
     private HeliosConnectionInfo getConnectionInfo() {
