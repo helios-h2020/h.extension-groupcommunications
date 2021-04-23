@@ -41,7 +41,7 @@ import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.M
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.PEER_REAL_NAME;
 
 public class ConversationManagerImpl implements
-        ConversationManager {
+        ConversationManager<Transaction> {
     public static final String TAG = ConversationManager.class.getName();
     private static final Logger LOG = Logger.getLogger(TAG);
 
@@ -72,6 +72,47 @@ public class ConversationManagerImpl implements
             db.endTransaction(txn);
         }
         return messageHeaders;
+    }
+
+    @Override
+    public MessageHeader getMessageHeader(String messageId)
+            throws DbException {
+        Transaction txn = db.startTransaction(true);
+        MessageHeader messageHeader;
+        try {
+            messageHeader = db.getMessageHeader(txn, messageId);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return messageHeader;
+    }
+
+    @Override
+    public GroupMessageHeader getGroupMessageHeader(String messageId)
+            throws DbException, FormatException {
+        Transaction txn = db.startTransaction(true);
+        GroupMessageHeader groupMessageHeader;
+        try {
+            groupMessageHeader = getGroupMessageHeader(txn, messageId);
+
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return groupMessageHeader;
+    }
+
+    @Override
+    public MessageHeader getMessageHeader(Transaction txn, String messageId) throws DbException {
+        return db.getMessageHeader(txn, messageId);
+    }
+
+    @Override
+    public GroupMessageHeader getGroupMessageHeader(Transaction txn, String messageId) throws DbException, FormatException {
+        MessageHeader messageHeader = db.getMessageHeader(txn, messageId);
+        BdfDictionary meta = parser.parseMetadata(db.getMessageMetadata(txn, messageId));
+        return new GroupMessageHeader(messageHeader, getPeerInfo(meta));
     }
 
     @Override
@@ -136,6 +177,24 @@ public class ConversationManagerImpl implements
             db.endTransaction(txn);
         }
         return group;
+    }
+
+    @Override
+    public ContactId getContactIdByGroupId(String groupId) throws DbException {
+        Transaction txn = db.startTransaction(true);
+        ContactId contactId;
+        try {
+            contactId = db.getContactIdByGroupId(txn, groupId);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return contactId;
+    }
+
+    @Override
+    public ContactId getContactIdByGroupId(Transaction txn, String groupId) throws DbException {
+        return db.getContactIdByGroupId(txn, groupId);
     }
 
     @Override
