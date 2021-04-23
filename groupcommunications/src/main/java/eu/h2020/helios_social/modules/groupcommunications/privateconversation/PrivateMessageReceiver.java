@@ -1,15 +1,5 @@
 package eu.h2020.helios_social.modules.groupcommunications.privateconversation;
 
-import android.app.Application;
-import android.app.DownloadManager;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.database.Cursor;
-import android.net.Uri;
-import android.webkit.MimeTypeMap;
-
 import com.google.gson.Gson;
 
 import org.jetbrains.annotations.NotNull;
@@ -29,6 +19,7 @@ import eu.h2020.helios_social.core.contextualegonetwork.ContextualEgoNetwork;
 import eu.h2020.helios_social.core.contextualegonetwork.Interaction;
 import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosMessagingReceiver;
 import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosNetworkAddress;
+import eu.h2020.helios_social.modules.groupcommunications.api.attachment.AttachmentManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.FormatException;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Attachment;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
@@ -48,9 +39,9 @@ import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageS
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageTracker;
 import eu.h2020.helios_social.modules.groupcommunications.api.mining.MiningManager;
 import eu.h2020.helios_social.modules.groupcommunications.messaging.event.PrivateMessageReceivedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageSentEvent;
 import eu.h2020.helios_social.modules.socialgraphmining.SocialGraphMiner;
 
-import static android.content.Context.DOWNLOAD_SERVICE;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.PRIVATE_MESSAGE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.ATTACHMENTS;
 import static java.util.logging.Logger.getLogger;
@@ -65,19 +56,22 @@ public class PrivateMessageReceiver
     private final MiningManager miningManager;
     private final MessageTracker messageTracker;
     private final EventBus eventBus;
-    private final Application app;
     private final Encoder encoder;
+    private final AttachmentManager attachmentManager;
 
     @Inject
-    public PrivateMessageReceiver(Application app, DatabaseComponent db,
+    public PrivateMessageReceiver(DatabaseComponent db,
                                   ContextualEgoNetwork egoNetwork, MiningManager miningManager,
-                                  MessageTracker messageTracker, Encoder encoder, EventBus eventBus) {
-        this.app = app;
+                                  MessageTracker messageTracker, Encoder encoder,
+                                  AttachmentManager attachmentManager,
+                                  EventBus eventBus) {
+
         this.db = db;
         this.egoNetwork = egoNetwork;
         this.miningManager = miningManager;
         this.messageTracker = messageTracker;
         this.encoder = encoder;
+        this.attachmentManager = attachmentManager;
         this.eventBus = eventBus;
     }
 
@@ -128,77 +122,35 @@ public class PrivateMessageReceiver
             throws DbException {
         Transaction txn = db.startTransaction(false);
         try {
-            LOG.info("private message received...");
-            String contextId =
-                    db.getGroupContext(txn, privateMessage.getGroupId());
-            db.addMessage(txn, privateMessage, MessageState.DELIVERED,
-                    contextId, true);
-            MessageHeader messageHeader = new MessageHeader(
-                    privateMessage.getId(),
-                    privateMessage.getGroupId(),
-                    privateMessage.getTimestamp(),
-                    MessageState.DELIVERED,
-                    true,
-                    false,
-                    privateMessage.getMessageType(),
-                    privateMessage.getMessageBody() != null);
-            messageTracker.trackIncomingMessage(txn, privateMessage);
+            if (!db.containsMessage(txn, privateMessage.getId())) {
+                LOG.info("private message received...");
+                String contextId =
+                        db.getGroupContext(txn, privateMessage.getGroupId());
+                db.addMessage(txn, privateMessage, MessageState.DELIVERED,
+                        contextId, true);
+                MessageHeader messageHeader = new MessageHeader(
+                        privateMessage.getId(),
+                        privateMessage.getGroupId(),
+                        privateMessage.getTimestamp(),
+                        MessageState.DELIVERED,
+                        true,
+                        false,
+                        privateMessage.getMessageType(),
+                        privateMessage.getMessageBody() != null);
+                messageTracker.trackIncomingMessage(txn, privateMessage);
 
-            LOG.info("received ack preferences: " + privateMessage.getPreferences());
-            if (privateMessage.getPreferences() != null)
-                ackMessage(txn, contactId, privateMessage);
-            db.commitTransaction(txn);
+                LOG.info("received ack preferences: " + privateMessage.getPreferences());
+                if (privateMessage.getPreferences() != null)
+                    ackMessage(txn, contactId, privateMessage);
+                db.commitTransaction(txn);
 
-
-            MimeTypeMap mime = MimeTypeMap.getSingleton();
-            DownloadManager downloadmanager = (DownloadManager) app.getSystemService(DOWNLOAD_SERVICE);
-            List<Long> ids = new ArrayList<>();
-            if (messageHeader.getMessageType() == Message.Type.IMAGES) {
-                for (Attachment a : privateMessage.getAttachments()) {
-                    String path = "/" + a.getUrl().replaceAll(".*/", "") + "." + mime.getExtensionFromMimeType(a.getContentType());
-                    Uri uri = Uri.parse(a.getUrl());
-                    DownloadManager.Request request = new DownloadManager.Request(uri);
-                    request.setMimeType(a.getContentType());
-                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN);
-
-                    LOG.info("Downloading attachment started! " + path);
-
-                    request.setDestinationInExternalFilesDir(app.getApplicationContext(), "/data", path);
-
-                    ids.add(downloadmanager.enqueue(request));
+                if (messageHeader.getMessageType() == Message.Type.IMAGES) {
+                    attachmentManager.downloadAttachments(privateMessage.getId(), privateMessage.getAttachments());
+                    addAttachmentMetadata(privateMessage.getId(), privateMessage.getAttachments());
+                } else {
+                    eventBus.broadcast(
+                            new PrivateMessageReceivedEvent(messageHeader, contactId));
                 }
-
-
-                BroadcastReceiver onComplete = new BroadcastReceiver() {
-                    @Override
-                    public void onReceive(Context arg0, Intent intent) {
-
-                        Long downloadId = intent.getLongExtra(
-                                DownloadManager.EXTRA_DOWNLOAD_ID, 0);
-                        LOG.info("Download completed to id " + downloadId);
-                        privateMessage.getAttachments().get(ids.indexOf(downloadId)).setUri(downloadmanager.getUriForDownloadedFile(downloadId).toString());
-                        DownloadManager.Query query = new DownloadManager.Query();
-                        query.setFilterByStatus(DownloadManager.STATUS_PAUSED |
-                                DownloadManager.STATUS_PENDING |
-                                DownloadManager.STATUS_RUNNING);
-                        Cursor cursor = downloadmanager.query(query);
-                        if (cursor != null && cursor.getCount() > 0) {
-                            return;
-                        } else {
-                            try {
-                                addAttachmentMetadata(privateMessage.getId(), privateMessage.getAttachments());
-                            } catch (DbException e) {
-                                e.printStackTrace();
-                            }
-                            eventBus.broadcast(
-                                    new PrivateMessageReceivedEvent(messageHeader, contactId));
-                        }
-                    }
-                };
-                app.registerReceiver(onComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
-            } else {
-                eventBus.broadcast(
-                        new PrivateMessageReceivedEvent(messageHeader, contactId));
             }
         } finally {
             db.endTransaction(txn);
@@ -218,6 +170,7 @@ public class PrivateMessageReceiver
         miningManager.getSocialGraphMiner().newInteraction(interaction, ack.getPreferences(),
                 SocialGraphMiner.InteractionType.RECEIVE_REPLY);
         messageTracker.setDeliveredFlag(fields[2]);
+        eventBus.broadcast(new MessageSentEvent(fields[2]));
 
     }
 
@@ -225,6 +178,7 @@ public class PrivateMessageReceiver
         Group group = db.getGroup(txn, privateMessage.getGroupId());
         DBContext context = db.getContext(txn, group.getContextId());
 
+        LOG.info("IS contextual ego network null? " + egoNetwork);
         Interaction interaction = egoNetwork
                 .getOrCreateContext(context.getName() + "%" + context.getId())
                 .getOrAddEdge(

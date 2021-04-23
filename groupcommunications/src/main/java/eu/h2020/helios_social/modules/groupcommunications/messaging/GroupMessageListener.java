@@ -21,6 +21,7 @@ import javax.inject.Inject;
 import eu.h2020.helios_social.core.messaging.HeliosMessage;
 import eu.h2020.helios_social.core.messaging.HeliosMessageListener;
 import eu.h2020.helios_social.core.messaging.HeliosTopic;
+import eu.h2020.helios_social.modules.groupcommunications.api.attachment.AttachmentManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Attachment;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Message;
 import eu.h2020.helios_social.modules.groupcommunications.messaging.event.PrivateMessageReceivedEvent;
@@ -57,16 +58,17 @@ public class GroupMessageListener implements HeliosMessageListener {
     private final MessageTracker messageTracker;
     private final EventBus eventBus;
     private final Encoder encoder;
-    private final Application app;
+    private final AttachmentManager attachmentManager;
 
     @Inject
     public GroupMessageListener(Application app, DatabaseComponent db,
                                 MessageTracker messageTracker, Encoder encoder,
+                                AttachmentManager attachementManager,
                                 EventBus eventBus) {
-        this.app = app;
         this.db = db;
         this.messageTracker = messageTracker;
         this.encoder = encoder;
+        this.attachmentManager = attachementManager;
         this.eventBus = eventBus;
     }
 
@@ -108,51 +110,9 @@ public class GroupMessageListener implements HeliosMessageListener {
 
                 db.commitTransaction(txn);
 
-                MimeTypeMap mime = MimeTypeMap.getSingleton();
-                DownloadManager downloadmanager = (DownloadManager) app.getSystemService(DOWNLOAD_SERVICE);
-                List<Long> ids = new ArrayList<>();
                 if (messageHeader.getMessageType() == Message.Type.IMAGES) {
-                    for (Attachment a : groupMessage.getAttachments()) {
-                        String path = "/" + a.getUrl().replaceAll(".*/", "") + "." + mime.getExtensionFromMimeType(a.getContentType());
-                        Uri uri = Uri.parse(a.getUrl());
-                        DownloadManager.Request request = new DownloadManager.Request(uri);
-                        request.setMimeType(a.getContentType());
-                        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN);
-
-                        LOG.info("Downloading attachment started! " + path);
-
-                        request.setDestinationInExternalFilesDir(app.getApplicationContext(), "/data", path);
-
-                        ids.add(downloadmanager.enqueue(request));
-                    }
-
-
-                    BroadcastReceiver onComplete = new BroadcastReceiver() {
-                        @Override
-                        public void onReceive(Context arg0, Intent intent) {
-                            Long downloadId = intent.getLongExtra(
-                                    DownloadManager.EXTRA_DOWNLOAD_ID, 0);
-                            LOG.info("Download completed to id " + downloadId);
-                            groupMessage.getAttachments().get(ids.indexOf(downloadId)).setUri(downloadmanager.getUriForDownloadedFile(downloadId).toString());
-                            DownloadManager.Query query = new DownloadManager.Query();
-                            query.setFilterByStatus(DownloadManager.STATUS_PAUSED |
-                                    DownloadManager.STATUS_PENDING |
-                                    DownloadManager.STATUS_RUNNING);
-                            Cursor cursor = downloadmanager.query(query);
-                            if (cursor != null && cursor.getCount() > 0) {
-                                return;
-                            } else {
-                                try {
-                                    addAttachmentMetadata(groupMessage.getId(), groupMessage.getAttachments());
-                                } catch (DbException e) {
-                                    e.printStackTrace();
-                                }
-                                eventBus.broadcast(
-                                        new GroupMessageReceivedEvent(messageHeader));
-                            }
-                        }
-                    };
-                    app.registerReceiver(onComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
+                    attachmentManager.downloadAttachments(groupMessage.getId(), groupMessage.getAttachments());
+                    addAttachmentMetadata(groupMessage.getId(), groupMessage.getAttachments());
                 } else {
                     eventBus.broadcast(
                             new GroupMessageReceivedEvent(messageHeader));

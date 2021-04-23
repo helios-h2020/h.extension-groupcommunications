@@ -13,7 +13,7 @@ import javax.inject.Inject;
 
 import eu.h2020.helios_social.core.contextualegonetwork.ContextualEgoNetwork;
 import eu.h2020.helios_social.core.contextualegonetwork.Interaction;
-import eu.h2020.helios_social.modules.groupcommunications.api.messaging.AbstractMessage;
+import eu.h2020.helios_social.modules.groupcommunications.api.attachment.AttachmentManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Attachment;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfList;
@@ -21,7 +21,6 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.data.Encoder;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
-import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
 import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.IoExecutor;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.AckMessageEvent;
@@ -67,10 +66,9 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
     private final MessageTracker messageTracker;
     private final ContextualEgoNetwork egoNetwork;
     private final MiningManager miningManager;
-    private final TusClient tusClient;
     private final CommunicationManager communicationManager;
-    private final EventBus eventBus;
     private final Encoder encoder;
+    private final AttachmentManager attachmentManager;
 
     @Inject
     public MessagingManagerImpl(Application app, DatabaseComponent db, @IoExecutor Executor ioExecutor,
@@ -79,7 +77,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
                                 CommunicationManager communicationManager, Encoder encoder,
                                 TusClient tusClient,
                                 MiningManager miningManager,
-                                EventBus eventBus) {
+                                AttachmentManager attachmentManager) {
         this.app = app;
         this.db = db;
         this.ioExecutor = ioExecutor;
@@ -87,11 +85,9 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
         this.messageTracker = messageTracker;
         this.egoNetwork = egoNetwork;
         this.miningManager = miningManager;
-        this.tusClient = tusClient;
         this.communicationManager = communicationManager;
         this.encoder = encoder;
-        this.eventBus = eventBus;
-        this.eventBus.addListener(this);
+        this.attachmentManager = attachmentManager;
     }
 
     @Override
@@ -277,28 +273,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
     private void sendMessage(Group group, Message groupMessage) {
         ioExecutor.execute(() -> {
             if (groupMessage.getMessageType().equals(Message.Type.IMAGES) || groupMessage.getMessageType().equals(Message.Type.ATTACHMENT)) {
-                for (Attachment attachment : groupMessage.getAttachments()) {
-                    try {
-                        TusUpload upload = new TusAndroidUpload(Uri.parse(attachment.getUri()), app);
-
-                        TusUploader uploader = tusClient.resumeOrCreateUpload(upload);
-                        long totalBytes = upload.getSize();
-                        long uploadedBytes = uploader.getOffset();
-
-                        // Upload file in 1MiB chunks
-                        uploader.setChunkSize(1024 * 1024);
-
-                        while (uploader.uploadChunk() > 0) {
-                            uploadedBytes = uploader.getOffset();
-                        }
-
-                        uploader.finish();
-                        attachment.setUrl(uploader.getUploadURL().toString());
-                        LOG.info("file: " + attachment.getUri() + " uploaded! Available in URL: " + uploader.getUploadURL().toString());
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
+                attachmentManager.uploadAttachments(groupMessage.getAttachments());
                 try {
                     addAttachmentMetadata(groupMessage.getId(), groupMessage.getAttachments());
                 } catch (DbException e) {
@@ -312,13 +287,13 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
             }
             if (group instanceof PrivateGroup) {
                 communicationManager.sendGroupMessage(
-                        ((PrivateGroup) group).getId(),
+                        group.getId(),
                         ((PrivateGroup) group).getPassword(),
                         groupMessage
                 );
             } else if (group instanceof Forum)
                 communicationManager.sendGroupMessage(
-                        ((Forum) group).getId(),
+                        group.getId(),
                         ((Forum) group).getPassword(),
                         groupMessage
                 );
@@ -328,28 +303,8 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
     private void sendMessage(String protocol, ContactId contactId, Message message) {
         ioExecutor.execute(() -> {
             if (message.getMessageType().equals(Message.Type.IMAGES) || message.getMessageType().equals(Message.Type.ATTACHMENT)) {
-                for (Attachment attachment : message.getAttachments()) {
-                    try {
-                        TusUpload upload = new TusAndroidUpload(Uri.parse(attachment.getUri()), app);
-
-                        TusUploader uploader = tusClient.resumeOrCreateUpload(upload);
-                        long totalBytes = upload.getSize();
-                        long uploadedBytes = uploader.getOffset();
-
-                        // Upload file in 1MiB chunks
-                        uploader.setChunkSize(1024 * 1024);
-
-                        while (uploader.uploadChunk() > 0) {
-                            uploadedBytes = uploader.getOffset();
-                        }
-
-                        uploader.finish();
-                        attachment.setUrl(uploader.getUploadURL().toString());
-                        LOG.info("file: " + attachment.getUri() + " uploaded! Available in URL: " + uploader.getUploadURL().toString());
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
+                attachmentManager.uploadAttachments(message.getAttachments());
+                LOG.info("Attachments: " + message.getAttachments());
                 try {
                     addAttachmentMetadata(message.getId(), message.getAttachments());
                 } catch (DbException e) {
@@ -358,7 +313,6 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
                 for (Attachment attachment : message.getAttachments()) {
                     attachment.setUri(null);
                 }
-
                 LOG.info("Attachments: " + message.getAttachments());
             }
             try {
