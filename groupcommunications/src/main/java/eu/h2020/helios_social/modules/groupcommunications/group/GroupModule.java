@@ -1,5 +1,6 @@
 package eu.h2020.helios_social.modules.groupcommunications.group;
 
+import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import dagger.Module;
@@ -11,40 +12,47 @@ import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.shari
 import eu.h2020.helios_social.modules.groupcommunications.api.group.sharing.SharingGroupManager;
 import eu.h2020.helios_social.modules.groupcommunications.group.sharing.GroupInvitationFactoryImpl;
 import eu.h2020.helios_social.modules.groupcommunications.group.sharing.SharingGroupManagerImpl;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
 
 
 @Module
 public class GroupModule {
 
-	@Provides
-	@Singleton
-	GroupManager providesGroupManager(GroupManagerImpl groupManager) {
-		return groupManager;
-	}
+    public static class EagerSingletons {
+        @Inject
+        SharingGroupManager sharingGroupManager;
+    }
 
-	@Provides
-	@Singleton
-	SharingGroupManager providesSharingGroupManager(
-			SharingGroupManagerImpl sharingGroupManager) {
-		return sharingGroupManager;
-	}
+    @Provides
+    @Singleton
+    GroupManager providesGroupManager(GroupManagerImpl groupManager) {
+        return groupManager;
+    }
 
-	@Provides
-	GroupInvitationFactory providesGroupInvitationFactoryImpl(
-			GroupInvitationFactoryImpl groupInvitationFactory) {
-		return groupInvitationFactory;
-	}
+    @Provides
+    @Singleton
+    SharingGroupManager providesSharingGroupManager(EventBus eventBus,
+                                                    SharingGroupManagerImpl sharingGroupManager) {
+        eventBus.addListener(sharingGroupManager);
+        return sharingGroupManager;
+    }
 
-	@Provides
-	@Singleton
-	GroupMessageFactory providesGroupMessageFactory(
-			GroupMessageFactoryImpl groupMessageFactory) {
-		return groupMessageFactory;
-	}
+    @Provides
+    GroupInvitationFactory providesGroupInvitationFactoryImpl(
+            GroupInvitationFactoryImpl groupInvitationFactory) {
+        return groupInvitationFactory;
+    }
 
-	@Provides
-	GroupFactory providesGroupFactory(
-			GroupFactoryImpl groupFactory) {
-		return groupFactory;
-	}
+    @Provides
+    @Singleton
+    GroupMessageFactory providesGroupMessageFactory(
+            GroupMessageFactoryImpl groupMessageFactory) {
+        return groupMessageFactory;
+    }
+
+    @Provides
+    GroupFactory providesGroupFactory(
+            GroupFactoryImpl groupFactory) {
+        return groupFactory;
+    }
 }
