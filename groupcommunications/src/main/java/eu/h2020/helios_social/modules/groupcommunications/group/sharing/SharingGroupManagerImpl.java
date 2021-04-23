@@ -10,10 +10,10 @@ import java.util.logging.Logger;
 
 import javax.inject.Inject;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.utils.Pair;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
-import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
 import eu.h2020.helios_social.modules.groupcommunications_utils.identity.Identity;
 import eu.h2020.helios_social.modules.groupcommunications_utils.identity.IdentityManager;
@@ -56,14 +56,13 @@ public class SharingGroupManagerImpl implements SharingGroupManager,
     private final IdentityManager identityManager;
     private final DatabaseComponent db;
     private final Executor ioExecutor;
-    private final EventBus eventBus;
     private final Clock clock;
 
     @Inject
     public SharingGroupManagerImpl(DatabaseComponent db,
                                    @IoExecutor Executor ioExecutor,
                                    GroupManager groupManager, IdentityManager identityManager,
-                                   CommunicationManager communicationManager, EventBus eventBus,
+                                   CommunicationManager communicationManager,
                                    Clock clock) {
         this.db = db;
         this.ioExecutor = ioExecutor;
@@ -71,8 +70,6 @@ public class SharingGroupManagerImpl implements SharingGroupManager,
         this.identityManager = identityManager;
         this.clock = clock;
         this.communicationManager = communicationManager;
-        this.eventBus = eventBus;
-        this.eventBus.addListener(this);
     }
 
     @Override
@@ -176,6 +173,21 @@ public class SharingGroupManagerImpl implements SharingGroupManager,
     }
 
     @Override
+    public void joinForum(Forum forum) throws DbException, FormatException {
+        Transaction txn = db.startTransaction(false);
+        try {
+            groupManager.addGroup(txn, forum);
+            communicationManager.subscribe(
+                    forum.getId(),
+                    forum.getPassword());
+            notifyModeratorsForJoiningForum(txn, forum);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+    }
+
+    @Override
     public void rejectGroupInvitation(GroupInvitation groupInvitation)
             throws DbException {
         try {
@@ -237,15 +249,17 @@ public class SharingGroupManagerImpl implements SharingGroupManager,
     private void notifyModeratorsForJoiningForum(Transaction txn, Forum forum)
             throws DbException, FormatException {
         Identity identity = identityManager.getIdentity();
-        String fakeId = (String) groupManager.getFakeIdentity(
+        Pair<String, String> fakeIdentity = groupManager.getFakeIdentity(
                 txn,
-                forum.getId()).getSecond();
+                forum.getId());
+        String fakeId = fakeIdentity.getSecond();
         MembershipInfo membershipInfo =
                 new MembershipInfo(
                         forum.getId(),
                         new PeerId(identity.getNetworkId(), fakeId),
                         forum.getDefaultMemberRole(),
                         identity.getAlias(),
+                        fakeIdentity.getFirst(),
                         clock.currentTimeMillis());
         membershipInfo.setAction(MembershipInfo.Action.JOIN_FORUM);
         for (String moderator : (List<String>) forum.getModerators()) {
