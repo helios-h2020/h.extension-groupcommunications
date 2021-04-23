@@ -20,7 +20,6 @@ import eu.h2020.helios_social.core.contextualegonetwork.ContextualEgoNetwork;
 import eu.h2020.helios_social.core.contextualegonetwork.Node;
 import eu.h2020.helios_social.modules.groupcommunications_utils.battery.event.BatteryEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
-import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
 import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
 import eu.h2020.helios_social.modules.groupcommunications_utils.settings.Settings;
@@ -45,20 +44,16 @@ public class MiningManagerImpl implements MiningManager, EventListener {
     private final ContextualEgoNetwork egoNetwork;
     private final SettingsManager settingsManager;
     private final WorkManager workManager;
-    private final EventBus eventBus;
 
     @Inject
     public MiningManagerImpl(SocialGraphMiner socialGraphMiner,
                              ContextualEgoNetwork egoNetwork,
                              SettingsManager settingsManager,
-                             WorkManager workManager,
-                             EventBus eventBus) {
+                             WorkManager workManager) {
         this.socialGraphMiner = socialGraphMiner;
         this.egoNetwork = egoNetwork;
         this.settingsManager = settingsManager;
         this.workManager = workManager;
-        this.eventBus = eventBus;
-        this.eventBus.addListener(this);
     }
 
     @Override
