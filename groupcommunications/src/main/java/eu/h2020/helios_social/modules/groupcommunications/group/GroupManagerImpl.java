@@ -141,6 +141,12 @@ public class GroupManagerImpl implements GroupManager<Transaction> {
     }
 
     @Override
+    public Collection<Forum> getForums(String contextId)
+            throws DbException, FormatException {
+        return forumManager.getForums(contextId);
+    }
+
+    @Override
     public Collection<Group> getGroups(Transaction txn)
             throws DbException, FormatException {
         Collection<Group> groups = new ArrayList();

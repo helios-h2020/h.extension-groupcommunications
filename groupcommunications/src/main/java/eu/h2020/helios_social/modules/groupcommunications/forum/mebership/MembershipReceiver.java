@@ -80,6 +80,7 @@ public class MembershipReceiver
                     membershipInfo.getPeerId(),
                     membershipInfo.getGroupId(),
                     membershipInfo.getAlias(),
+                    membershipInfo.getFakeName(),
                     membershipInfo.getRole(),
                     membershipInfo.getTimestamp());
             Identity identity = identityManager.getIdentity();

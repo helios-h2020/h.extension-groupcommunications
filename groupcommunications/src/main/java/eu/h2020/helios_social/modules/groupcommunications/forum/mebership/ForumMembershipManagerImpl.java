@@ -76,6 +76,7 @@ public class ForumMembershipManagerImpl implements ForumMembershipManager {
                             new PeerId(identity.getNetworkId()),
                             null,
                             null,
+                            null,
                             clock.currentTimeMillis());
             if (personalRole == ForumMemberRole.MODERATOR ||
                     personalRole == ForumMemberRole.ADMINISTRATOR) {
@@ -146,6 +147,7 @@ public class ForumMembershipManagerImpl implements ForumMembershipManager {
                             forumMember.getGroupId(),
                             forumMember.getPeerId(),
                             updatedRole,
+                            null,
                             null,
                             clock.currentTimeMillis()
                     );
