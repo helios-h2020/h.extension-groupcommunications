@@ -15,11 +15,17 @@ import dagger.Provides;
 import eu.h2020.helios_social.core.contextualegonetwork.ContextualEgoNetwork;
 import eu.h2020.helios_social.modules.contentawareprofiling.ContentAwareProfileManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.mining.MiningManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
 import eu.h2020.helios_social.modules.socialgraphmining.GNN.GNNMiner;
 import eu.h2020.helios_social.modules.socialgraphmining.SocialGraphMiner;
 
 @Module
 public class MiningModule {
+
+    public static class EagerSingletons {
+        @Inject
+        MiningManager miningManager;
+    }
 
     @Provides
     @Singleton
@@ -29,8 +35,9 @@ public class MiningModule {
 
     @Provides
     @Singleton
-    MiningManager provideMiningManager(
-            MiningManagerImpl miningManager) {
+    MiningManager provideMiningManager(EventBus eventBus,
+                                       MiningManagerImpl miningManager) {
+        eventBus.addListener(miningManager);
         return miningManager;
     }
 
