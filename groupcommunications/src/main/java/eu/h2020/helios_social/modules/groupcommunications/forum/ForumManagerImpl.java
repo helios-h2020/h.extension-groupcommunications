@@ -9,9 +9,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupType;
+import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.index.Indexer;
+import eu.h2020.helios_social.modules.groupcommunications.resourcediscovery.index.ForumIndexer;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfEntry;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfList;
@@ -59,6 +63,7 @@ public class ForumManagerImpl implements ForumManager<Transaction> {
             getLogger(ForumManager.class.getName());
 
     private final DatabaseComponent db;
+    private final Indexer forumIndexer;
     private final IdentityManager identityManager;
     private final MessageTracker messageTracker;
     private final Encoder encoder;
@@ -66,10 +71,11 @@ public class ForumManagerImpl implements ForumManager<Transaction> {
     private final Clock clock;
 
     @Inject
-    public ForumManagerImpl(DatabaseComponent db,
-                            IdentityManager identityManager, MessageTracker messageTracker,
-                            Encoder encoder, Parser parser, Clock clock) {
+    public ForumManagerImpl(DatabaseComponent db, Indexer forumIndexer,
+                            IdentityManager identityManager, MessageTracker messageTracker, Encoder encoder,
+                            Parser parser, Clock clock) {
         this.db = db;
+        this.forumIndexer = forumIndexer;
         this.identityManager = identityManager;
         this.messageTracker = messageTracker;
         this.encoder = encoder;
@@ -94,21 +100,19 @@ public class ForumManagerImpl implements ForumManager<Transaction> {
     public void addForum(Transaction txn, Forum forum, ForumType type,
                          boolean isAdministrator)
             throws FormatException, DbException {
-        LOG.info("is Admin? " + isAdministrator);
-        LOG.info("Default forum role? " + forum.getDefaultMemberRole());
         BdfList descriptor =
                 BdfList.of(forum.getName(), forum.getPassword(),
                         type.getValue(), isAdministrator);
         db.addGroup(txn, forum, encoder.encodeToByteArray(descriptor),
                 forum.getGroupType());
         String fakeId = UUID.randomUUID().toString();
+        String fakeName = Faker.instance().name().username();
         BdfDictionary meta = BdfDictionary.of(
                 new BdfEntry(FORUM_TAGS, new BdfList(forum.getTags())),
                 new BdfEntry(FORUM_DEFAULT_USER_GROUP,
                         forum.getDefaultMemberRole().getInt()),
                 new BdfEntry(FORUM_MODERATORS, new BdfList(forum.getModerators())),
-                new BdfEntry(PEER_FUNNY_NAME,
-                        Faker.instance().name().username()),
+                new BdfEntry(PEER_FUNNY_NAME, fakeName),
                 new BdfEntry(PEER_FAKE_ID, fakeId),
                 new BdfEntry(GROUP_SHOW_TRUE_SELF, false)
         );
@@ -119,7 +123,7 @@ public class ForumManagerImpl implements ForumManager<Transaction> {
             String alias = identityManager.getIdentity().getAlias();
             db.addForumMember(txn,
                     new ForumMember(new PeerId(peerId, fakeId), forum.getId(),
-                            alias, ForumMemberRole.ADMINISTRATOR,
+                            alias, fakeName, ForumMemberRole.ADMINISTRATOR,
                             clock.currentTimeMillis()));
         } else {
             meta.put(FORUM_ROLE, forum.getDefaultMemberRole().getInt());
@@ -153,6 +157,10 @@ public class ForumManagerImpl implements ForumManager<Transaction> {
         db.mergeGroupMetadata(txn, forum.getId(),
                 encoder.encodeMetadata(meta));
         messageTracker.initializeGroupCount(txn, forum.getId());
+
+        if (forum.getGroupType().equals(GroupType.PublicForum)) {
+            forumIndexer.addQueryable(txn, forum);
+        }
     }
 
     @Override
@@ -196,6 +204,17 @@ public class ForumManagerImpl implements ForumManager<Transaction> {
         Collection<Group> groups = db.getForums(txn);
         LOG.info("Forums: " + groups);
         return getForums(txn, groups);
+    }
+
+    @Override
+    public List<Forum> getPublicLocationForums(Transaction txn, String contextId)
+            throws DbException, FormatException {
+        Collection<Group> groups = db.getGroups(txn, contextId, GroupType.PublicForum);
+        return getForums(txn, groups)
+                .stream()
+                .filter(e ->
+                        e instanceof LocationForum)
+                .collect(Collectors.toList());
     }
 
     @Override
