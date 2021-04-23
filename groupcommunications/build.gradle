@@ -10,8 +10,8 @@ android {
 		versionCode 1
 		versionName "1.0"
 
-		testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-		consumerProguardFiles "consumer-rules.pro"
+		//testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+		//consumerProguardFiles "consumer-rules.pro"
 	}
 
 	aaptOptions {
@@ -46,9 +46,9 @@ dependencies {
 	implementation 'io.tus.java.client:tus-java-client:0.4.1'
 	implementation 'io.tus.android.client:tus-android-client:0.1.9'
 
-	implementation 'eu.h2020.helios_social.modules.groupcommunications-utils:groupcommunications-utils:1.0.6'
-	implementation 'eu.h2020.helios_social.modules.groupcommunications-db:groupcommunications-db:1.0.2'
-	implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.9'
+	implementation 'eu.h2020.helios_social.modules.groupcommunications-utils:groupcommunications-utils:1.0.7'
+	implementation 'eu.h2020.helios_social.modules.groupcommunications-db:groupcommunications-db:1.0.3'
+	implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.10'
 
 	implementation 'org.jetbrains:annotations:15.0'
 	implementation 'androidx.core:core-ktx:1.3.2'
@@ -62,7 +62,7 @@ dependencies {
 	implementation("com.google.guava:guava:29.0-android")
 	implementation 'eu.h2020.helios_social.core.storage:storage:1.0.0'
 	implementation "androidx.room:room-runtime:$room_version"
-	implementation 'eu.h2020.helios_social.core.messaging:messaging:1.1.7'
+	implementation 'eu.h2020.helios_social.core.messaging:messaging:1.1.10'
 	implementation 'eu.h2020.helios_social.core.profile:profile:1.0.3'
 
 	implementation 'eu.h2020.helios_social.core.context:context:1.0.10'
