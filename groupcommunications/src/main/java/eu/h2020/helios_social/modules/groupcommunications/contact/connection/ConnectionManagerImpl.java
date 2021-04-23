@@ -77,15 +77,15 @@ public class ConnectionManagerImpl implements ConnectionManager {
                                 pendingContact.getTimestamp());
                 Group group = new Group(UUID.randomUUID().toString(), "All",
                         GroupType.PrivateConversation);
-                communicationManager.sendDirectMessage(CONNECTIONS_RECEIVER_ID,
-                        pendingContact.getId(), connectionInfo
-                                .setConversationInfo(group.getId(),
-                                        group.getContextId()));
                 contactManager.addContact(new Contact(pendingContact.getId(),
                         pendingContact.getAlias(), pendingContact.getProfilePicture()));
                 conversationManager
                         .addContactGroup(pendingContact.getId(), group);
                 contactManager.deletePendingContact(pendingContact.getId());
+                communicationManager.sendDirectMessage(CONNECTIONS_RECEIVER_ID,
+                        pendingContact.getId(), connectionInfo
+                                .setConversationInfo(group.getId(),
+                                        group.getContextId()));
             }
         } catch (DbException e) {
             e.printStackTrace();
@@ -101,9 +101,9 @@ public class ConnectionManagerImpl implements ConnectionManager {
     @Override
     public void rejectConnectionRequest(PendingContact pendingContact) {
         try {
+            contactManager.deletePendingContact(pendingContact.getId());
             communicationManager.sendDirectMessage(CONNECTIONS_RECEIVER_ID,
                     pendingContact.getId(), new ConnectionInfo());
-            contactManager.deletePendingContact(pendingContact.getId());
         } catch (DbException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
