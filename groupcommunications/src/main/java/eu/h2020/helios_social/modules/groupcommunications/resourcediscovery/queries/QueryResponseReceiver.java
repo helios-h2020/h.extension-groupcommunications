@@ -26,7 +26,7 @@ import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.
 import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.queries.QueryableDeserializer;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.QueryResponseReadyToSendEvent;
-import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.QueryResultsReceived;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.QueryResultsReceivedEvent;
 
 public class QueryResponseReceiver implements HeliosMessagingReceiver {
     private static Logger LOG = Logger.getLogger(QueryResponseReceiver.class.getName());
@@ -93,7 +93,7 @@ public class QueryResponseReceiver implements HeliosMessagingReceiver {
 
         LOG.info("Query Response is: " + qr + " sourcePeer: " + sourcePeer);
         if (qr != null && sourcePeer != null && sourcePeer.equals("self")) {
-            eventBus.broadcast(new QueryResultsReceived(qr));
+            eventBus.broadcast(new QueryResultsReceivedEvent(qr));
         } else if (qr != null && sourcePeer != null) {
             eventBus.broadcast(new QueryResponseReadyToSendEvent(new PeerId(sourcePeer), qr));
         }
