@@ -6,9 +6,7 @@ import java.util.logging.Logger;
 
 import javax.inject.Inject;
 
-import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
-import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ProfileRequestReceivedEvent;
 import eu.h2020.helios_social.modules.groupcommunications.api.CommunicationManager;
@@ -27,21 +25,15 @@ public class SharingProfileManagerImpl implements SharingProfileManager, EventLi
     private static final Logger LOG =
             getLogger(SharingProfileManagerImpl.class.getName());
 
-    private final DatabaseComponent db;
     private final CommunicationManager communicationManager;
     private final ProfileManager profileManager;
-    private final EventBus eventBus;
 
     @Inject
-    public SharingProfileManagerImpl(DatabaseComponent db,
-                                     CommunicationManager communicationManager,
-                                     ProfileManager profileManager,
-                                     EventBus eventBus) {
-        this.db = db;
+    public SharingProfileManagerImpl(
+            CommunicationManager communicationManager,
+            ProfileManager profileManager) {
         this.communicationManager = communicationManager;
         this.profileManager = profileManager;
-        this.eventBus = eventBus;
-        this.eventBus.addListener(this);
     }
 
 
