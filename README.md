@@ -15,6 +15,7 @@ communications and interactions are stored locally in the user's device in a dat
 ![HELIOS Group Communication Services](docs/images/GCS-Figure.jpg "HELIOS Group Communication Services Overview")
 
 ##Communication Manager
+
 At the heart of the Group Communication Services, lies the communication protocol that allows us
 to send and receive direct messages to/from other users in the network, based on their HELIOS
 identifier, as well as subscribe to specific topics in order to interact with a group of peers
@@ -34,7 +35,7 @@ interacts with h.core-Messaging and h.core-Messaging-NodeJSlibP2P modules. In de
  and exposed by h.core-Messaging-NodeJSlibP2P, to congregate peers arround topics. Each topic is
  defined by a title and a password. For each private group and forum we assign a listener to
  handle message received events. 
-* **announce/unannounce tags: By announcing a tag in the network, users make themselves
+* **announce/unannounce tags**: By announcing a tag in the network, users make themselves
  discoverable by other peers that are announcing and observing the same tag. 
 
 The ``ReliableCommumicationManagerImpl`` implements Lifecycle Manager's OpenDatabaseHook where
@@ -44,6 +45,7 @@ The ``ReliableCommumicationManagerImpl`` implements Lifecycle Manager's OpenData
  subscribe on startup and receive new messages, if exist. 
 
 ##ContactManager, ConnectionManager & PendingContactFactory
+
 GCS provides a ``ContactManagerImpl`` implements ``ContactManager`` which interacts with the
 Database Component and allows adding, removing, getting Contacts or Pending Contacts from the
 database. The ``PendingContactFactoryImpl`` facilitates the generation of incoming and outgoing
