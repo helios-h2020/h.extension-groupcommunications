@@ -77,9 +77,7 @@ contextManager.addContext(locationContext);
 
 //set the created location context as active in the social ego network
 egoNetwork.setCurrent(egoNetwork.getOrCreateContext(locationContext.getId()));
-```
 
-```java
 //create context invitation
 ContextInvitation contextInvitation = contextInvitationFactory.createOutgoingContextInvitation(contact, context);
 
@@ -96,7 +94,7 @@ haringContextManager.rejectContextInvitation(contextInvitation);
 Collection<ContextInvitation> pendingContextInvitations = contextManager.getPendingContextInvitations();
 ```
 
-## ContactManager, ConnectionManager & PendingContactFactory
+## Contact Management
 
 GCS provides a ``ContactManagerImpl`` implements ``ContactManager`` which interacts with the
 Database Component and allows adding, removing, getting Contacts or Pending Contacts from the
@@ -132,6 +130,198 @@ contactManager.getContacts();
 //load contacts of the given context
 contactManager.getContacts(contextId);
 ```
+
+## Profile Management
+
+Every Social Media platform allows its users to define their profiles. GCS provides a
+``ProfileManagerImpl``, which is responsible for defining, storing and updating user’s different
+profiles for different contexts. A user can request to access the profile of a peer on demand
+only if this peer is already connected with the user (they are friends). The
+``SharingProfilileManagerImpl`` is responsible for interacting with the ``CommunicationManager
+`` and sending a profile request/response to the defined peer. Finally, the
+``ProfileRequestReceiver`` is responsible for handling the received profile request and responses. 
+
+```java
+//Stores profile in database. Note that, each profile is linked with a specific context.
+profileManager.addProfile(p);
+
+//Update Profile
+profileManager.updateProfile(p);
+
+//send profile reuqest to contact
+sharingProfileManager.sendProfileRequest(contactId,contextId);
+
+/*Send profile response to profile request to contact .Note that, this response is sent
+ automatically from the SharingProfileManagerImpl when a ProfileRequestReceivedEvent occurs
+. ProfileRequestReceivedEvents are broadcasted by the ProfileRequestReceiver.
+*/
+sharingProfileManager.sendProfileResponse(contactId,contextId);
+```
+
+## Group Management
+
+Group communications refers to communication between affiliate groups of users. Through groups
+, users form loosely connected communities around a topic, hobby, social group, etc. A user can
+be a member and communicate with several groups in parallel. The HELIOS Group Communication
+Services provide two different types of groups: (a) private groups, which can only be shared by
+the owner, and (b) forums, which can be split into different subtypes. We detail each group type
+below.
+
+# Private Groups
+
+The main goal of group conversations is to bring groups of people into a single place that
+encourages focused communication. Private groups are user-created, invite-only non-searchable
+groups of conversation. Each private group is described by a group identifier, password, context
+identifier, immutable name and owner id. In private groups, all members have read/write
+permissions by default but only the owner can invite members to join the group.
+
+The ``PrivateGroupManagerImpl`` interacts with the ``DatabaseComponent`` and allows adding/removing
+private groups, adding/removing members to/from groups that the peer is the owner. To join a
+private group, another peer needs to know the group identifier and password, information that
+becomes available through Group Invites and handled by the ``SharingGroupManagerImpl``. Finally, only
+the owner can see the member list of the group and he/she can only remove members from the
+conversation. 
+
+```java
+/*The GroupFactoryImpl facilitates the creation of different group types. This method creates a
+non-sharable Group of conversation with the given name*/
+PrivateGroup privateGroup = groupFactory.createPrivateGroup(name, currentContextId);
+
+//stores the given private group to database
+privateGroupManager.addPrivateGroup(privateGroup);
+
+/*Alternatively, GroupManagerImpl can be used to acheive the same result. GroupManager is able to
+ manage different types of groups (private groups, or forums)*/
+groupManager.addGroup(privateGroup);
+
+/*The GroupInvitationFactoryImpl facilitates the creation of incoming and outgoing group
+ invitations.*/
+//Creates an outgoing Group Invitation given the contact identifier and corresponding group.
+GroupInvitation groupInvitation = groupInvitationFactory.createOutgoingGroupInvitation(contactId, privateGroup);
+sharingGroupManager.sendGroupInvitation(groupInvitation);
+
+```
+
+# Forums
+
+Forums differ from private groups since they are sharable groups of discussions and are
+controlled by administrators and moderators. GCS provide three different types of forums:
+
+* **Public Forums**, which are discoverable by other peers and anyone can join without permission
+from the administrator or moderators. However, the access level of new members is defined by the
+ administrator in the creation phase of the forum.
+* **Protected Forums**, which are discoverable by other users but the peer need to request access
+permissions by the moderators. 
+* **Secret Forums**, which are not discoverable by other users, and a peer can join a secret
+ forum only he/she has been directly invited by another member of the group.
+ 
+HELIOS Forums can be linked to a specific location or time frame and thus can be further
+subdivided in the following types:
+
+* **Named Forums** (``Forum``), all forums are named forums and are described ny a name and list of
+ manually assigned tags that usually represent relevant to the topic keywords. 
+* **Location Forums** (``LocationForum``), allow users to link a named forum with a specific
+location by assigning latitude, longitude and active radius. 
+* **Seasonal Forums** (``SeasonalForum``), allow users to link a named forum with a specific
+season, daytime or timespan.
+
+The GCS provide the ``ForumManagerImpl`` interacts with the ``DatabaseComponent`` and is
+responsible for getting/adding/removing different types of forums.
+
+```java
+/*The GroupFactoryImpl facilitates the creation of different group types. This method creates a
+sharable location forum with the given name. The created forum will be public and the default
+member role for new members will be editor (they can read and write messages to the forum)*/
+Forum forum = groupFactory.createLocationForum(
+                                                name,
+                                                contextId,
+                                                GroupType.PublicForum,
+                                                tags,
+                                                ForumMemberRole.EDITOR, 
+                                                latitude, 
+                                                longitude, 
+                                                radius
+                                        );
+
+//stores the given forum to database
+forumManager.addForum(forum);
+
+//load all forums the user has subscribed to
+forumManager.getForums();
+
+//load all forums the user has subscribed to in the given context
+forumManager.getForums(contextId);
+
+/*load all members of the given forum (if user is not administrator/moderator in the given forum
+ the returned list will be empty*/
+forumManager.getForumMembers(groupId)
+
+//returns user's role in the given forum
+forumManager.getRole(groupId)
+
+//user reveals his/her true identity to group (username & peer id will be enclosed in group messages)
+groupManager.revealSelf(groupId, true);
+
+/*Returns the pseudo-identifier and pseudonym the user uses in the given group. The fake identity
+ is created when the use joins for the first time a new forum/private group*/
+groupManager.getFakeIdentity(groupId);
+
+//Alternatively, GroupManagerImpl can be used to achieve the same result.
+groupManager.addGroup(forum);
+
+/*The GroupInvitationFactoryImpl facilitates the creation of incoming and outgoing group
+ invitations.*/
+//Creates an outgoing Group Invitation given the contact identifier and corresponding group.
+GroupInvitation groupInvitation = groupInvitationFactory.createOutgoingGroupInvitation(contactId, forum);
+sharingGroupManager.sendGroupInvitation(groupInvitation);
+
+```
+
+## Messaging
+
+Messaging is the cornerstone of group communications. GCS offer a number of managers to
+facilitate one-on-one and group communication in different contexts. More specifically, the
+``ConversationManagerImpl`` cooperates with the ``DatabaseComponent`` and is in control of adding 
+one-on-one or group messages, adding/removing messages to/from favorites and raising read flags
+for messages. By adding messages to favorites, one can have quick access to such messages. Each
+Message is described by a message header and the main message. The main message can be a private
+or a group message. Private messages are described by an identifier, group identifier (or
+conversation identifier), body and type. Peers can send text, video call and attachment messages
+to private conversations. Group messages are described similarly with private messages but they
+also contain peer information since not all group members are included in the user's connections.
+Additionally, peers could choose to remain anonymous in group conversations and only a pseudonym
+is visible to the group. Message Headers contains some general information about the message such
+as if the message is incoming and the message state. The message state can be pending (only
+valid for outgoing messages), delivered or seen. 
+
+Additionally, GCS provide a ``MessagingManager``, which is responsible for sending private and group 
+messages to other peers or groups. The ``MessageTracker`` is in charge of updating the total message 
+counter and the unread message counter to provide updates to the users. Finally, the 
+``PrivateMessageReceiver`` and ``GroupMessageListener`` handle incoming private and group messages. 
+
+```java
+/* PrivateMessageFactory facilitates the creation of different types of private messages (text
+, attachment, videocall). Below, the PrivateMessageFactory creates a new private Message given the 
+group Identifier, timestamp and text.
+*/
+Message privateMessage = privateMessageFactory.createTextMessage(groupId, timestamp, text);
+
+//Sends the given private message in the given contact and context and returns the MessageHeader
+MessageHeader header = messagingManager.sendPrivateMessage(contactId, contextId, privateMessage);
+
+/* GroupMessageFactory facilitates the creation of different types of group messages. Below, the
+ GroupMessageFactory creates a new groupMessage given the group identifier, text, timestamp, user
+'s pseudonym for the group and user's pseudo-identifier for the group.
+*/
+GroupMessage groupMessage = groupMessageFactory.createGroupMessage(groupId, text, timestamp, fakeIdentity.getFirst(), fakeIdentity.getSecond());
+
+//Sends the given group message in the given group and returns the GroupMessageHeader
+GroupMessageHeader header = (GroupMessageHeader) messagingManager.sendGroupMessage(group, groupMessage);
+
+//MessageTrackerImpl marks the given message as read and updates the group count.
+messageTracker.setReadFlag(groupId, messageId);
+```
+
 
 ## Project Structure
 This project contains the following components:
