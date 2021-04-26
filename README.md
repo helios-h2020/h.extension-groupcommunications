@@ -14,7 +14,7 @@ communications and interactions are stored locally in the user's device in a dat
 
 ![HELIOS Group Communication Services](docs/images/GCS-Figure.jpg "HELIOS Group Communication Services Overview")
 
-##Communication Manager
+## Communication Manager
 
 At the heart of the Group Communication Services, lies the communication protocol that allows us
 to send and receive direct messages to/from other users in the network, based on their HELIOS
@@ -44,7 +44,7 @@ The ``ReliableCommumicationManagerImpl`` implements Lifecycle Manager's OpenData
  details of the forums and private groups the user has subscribed in the past in order to
  subscribe on startup and receive new messages, if exist. 
 
-##ContactManager, ConnectionManager & PendingContactFactory
+## ContactManager, ConnectionManager & PendingContactFactory
 
 GCS provides a ``ContactManagerImpl`` implements ``ContactManager`` which interacts with the
 Database Component and allows adding, removing, getting Contacts or Pending Contacts from the
