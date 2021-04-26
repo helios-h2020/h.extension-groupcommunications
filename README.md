@@ -167,7 +167,7 @@ Services provide two different types of groups: (a) private groups, which can on
 the owner, and (b) forums, which can be split into different subtypes. We detail each group type
 below.
 
-# Private Groups
+### Private Groups
 
 The main goal of group conversations is to bring groups of people into a single place that
 encourages focused communication. Private groups are user-created, invite-only non-searchable
@@ -202,7 +202,7 @@ sharingGroupManager.sendGroupInvitation(groupInvitation);
 
 ```
 
-# Forums
+### Forums
 
 Forums differ from private groups since they are sharable groups of discussions and are
 controlled by administrators and moderators. GCS provide three different types of forums:
@@ -270,11 +270,39 @@ groupManager.getFakeIdentity(groupId);
 groupManager.addGroup(forum);
 
 /*The GroupInvitationFactoryImpl facilitates the creation of incoming and outgoing group
- invitations.*/
-//Creates an outgoing Group Invitation given the contact identifier and corresponding group.
+invitations. The following method creates an outgoing Group Invitation given the contact identifier
+ and corresponding group.*/
 GroupInvitation groupInvitation = groupInvitationFactory.createOutgoingGroupInvitation(contactId, forum);
 sharingGroupManager.sendGroupInvitation(groupInvitation);
 
+```
+
+### Forum Membership Management
+GCS provide a Forum Membership management mechanism to allow administrators and moderators to
+revoke access rights from a user or a group of users if they behave inappropriately. Even though
+forums can be shared by their members, common forum members do not have access to the global
+membership list of the forum, only administrators and moderators can access this knowledge. In
+detail, HELIOS forums organize forum members into four user groups: 
+
+* **Administrators** can promode/demote members from administrators to readers
+* **Moderators** can also promote/demote members from editors to readers. However, they cannot
+ promote/demote moderators/administrators.
+* **Editors** can only read/write to the forum but they do not have access to the member list
+* **Readers** can only read posts from the forum but they cannot post messages or access the
+ member list
+
+The creator of the forum is automatically assigned as administrator. While creating a forum, the
+administrator can define the user group that new members are assigned to. As we have already
+mentioned, the global membership list of a forum is retained only by administrators and
+moderators, other user groups only retain the list of moderators. When a new peer joins a forum
+, he/she needs to notify all moderators to include her in the member list. This is handled
+automatically by the ``SharingGroupManagerImpl``. The ``ForumMembershipManagerImpl`` is
+responsible for managing memberships in forums.
+
+```java
+/*Checks if the user is administrator/moderator of the forum and if yes it updates the role of a
+Forum Member in the Forum Membership List and notifies peer and moderators*/
+forumMembershipManager.updateForumMemberRole(forum, forumMember, updatedRole)
 ```
 
 ## Messaging
