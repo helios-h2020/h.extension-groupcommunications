@@ -68,8 +68,7 @@ invitations. Finally, the ``ContextInviteReceiver`` handles incoming context inv
 
 ```java
 /*The LocationContextProxy extends the functionality of LocationContexts as defined in h.core
--Context module */
-//ContextFactory allows the creation of a LocationContext
+-Context module and ContextFactory facilitates the creation of different types of contexts */
 LocationContextProxy locationContextProxy =	contextFactory.createLocationContext(name, color, lat, lng, sradius);
 
 //add the new context to database
@@ -430,6 +429,7 @@ public class QueryActivity extends AppCompatActivity implements EventListener {
         eventBus.removeListener(this);
     }
 
+    @Override
     public void eventOccurred(Event e) {
             if (e instanceof QueryResultsReceivedEvent) {
                 QueryResponse queryResponse = ((QueryResultsReceivedEvent) e).getQueryResponse();
@@ -437,6 +437,48 @@ public class QueryActivity extends AppCompatActivity implements EventListener {
             }
     }
 
+}
+```
+
+## Mining Tasks
+
+HELIOS aims to offer a variety of features to make user experience more playful and engaging. 
+Mining user's data to offer meaningful recommendations is as task usually performed in
+centralized servers. HELIOS platform offers extension modules that allow the mining such data
+in user's device in a decentralized manner. Next interaction recommendations, friend
+recommendations and content-aware profiling related to such mining tasks. The Group
+Communications Services integrates the functionality of h.extension-SocialGraphMining module that
+offers next interaction recommendations to users and the functionality of h.extension
+-ContentAwareProfiling module that analyses user's image collection on the device to produce
+for the user interest-based profiles automatically.
+
+``MiningManagerImpl`` is responsible for handling the execution and results of mining tasks. The
+main goal of the Mining Manager is to schedule mining tasks, if needed, and allow quick access
+to their results. ``MiningManagerImpl`` implements ``EventListener`` and when a ``BatteryEvent`` is 
+broadcasted and the battery is charging then the ``ProfilingWorker`` is enlisted to ``WorkManager``
+to run the content-aware profiling task in the background. The ContentAwareProfilingManager
+stores the results of the profiling in the ``ContextualEgoNetwork`` and the results can be
+retrieved directly by the ``ContextualEgoNetwork``. Finally, ``MiningManagerImpl`` allows users
+to retrieve the top 3 next interaction recommendations in a defined context as calculated by the
+``SocialGraphMiner``.
+
+```java
+//Retrieves the top 3 next interaction recommendations in the given context
+HashMap<Node, Double> recommendations = miningManager.getNextInteractionRecommendations(contextId);
+
+//Retrieves content-aware profile
+Settings settings = settingsManager.getSettings(SETTINGS_NAMESPACE);
+ContentAwareProfilingType profilingType = ContentAwareProfilingType.fromValue(settings.getInt(PREF_CONTENT_PROFILING, 0));
+if (profilingType == ContentAwareProfilingType.COARSE_INTEREST_RPOFILE) {
+    ArrayList<Interest> extracted_interests = egoNetwork.getEgo()
+                                                .getOrCreateInstance(CoarseInterestsProfile.class)
+                                                .getInterests();
+    //do something with these extracted interests
+}else if (profilingType == ContentAwareProfilingType.FINE_INTEREST_PROFILE) {
+        ArrayList<Interest> extracted_interests = egoNetwork.getEgo()
+                                                    .getOrCreateInstance(FineInterestsProfile.class)
+                                                    .getInterests();
+    //do something with these extracted interests
 }
 ```
 
