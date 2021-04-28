@@ -301,7 +301,7 @@ responsible for managing memberships in forums.
 
 ```java
 /*Checks if the user is administrator/moderator of the forum and if yes it updates the role of a
-Forum Member in the Forum Membership List and notifies peer and moderators*/
+Forum Member in the Forum Membership List and notifies the peer and moderators*/
 forumMembershipManager.updateForumMemberRole(forum, forumMember, updatedRole)
 ```
 
@@ -350,6 +350,95 @@ GroupMessageHeader header = (GroupMessageHeader) messagingManager.sendGroupMessa
 messageTracker.setReadFlag(groupId, messageId);
 ```
 
+## Resource Discovery
+
+HELIOS as all p2p networks pose challenges of its own. These challenges stem from the lack of a
+common reliable storage and access endpoint, and include resource discovery, i.e., how a user can 
+find and join public groups of interest, and resource availability, i.e., how group messages that 
+are stored at user devices remain available despite user churn.
+
+``ResourceDiscoveryModule`` provides a set of Managers and Receivers to tackle the issue of
+Resource Discovery and more specifically the discovery of public forums. ``QueryManagerImpl`` is
+responsible for sending Queries to neighbors, forwarding queries to neighbors and pushing
+responses back to the requester. Two different types of queries are supported at this stage:
+(i) queries based on a given text (``TextQuery``) and (ii) queries based on location
+(``LocationQuery``). The goal is to receive relevant public forums based on the search 
+term(s)/latitude, longitude in the current context. Existing solutions for resource and content
+discovery in P2P systems can be classified into structured and unstructured methods. The
+``ResourceDiscoveryModule`` introduces an unstructured approach that involves propagating queries
+along a node's peers and in our case a user's existing connections. The ``QueryForwarderManager``
+allows us to calculate the next hops based on different approaches (flooding, random walk, k
+-random walk).
+
+```java
+List<PeerId> nextHops = queryForwarderManager.getNextHops(KRandomWalkQueryForwarder.class, requesterPeerId, query);
+```
+
+Each peer in the network maintains an inverted index about the public forums he/she has
+subscribed to and the ``InvertedIndexManager`` facilitates the management of such index. The 
+``QueryReceiver`` is responsible for checking if the received query is already in the cache and
+if not it checks if the query is already dead. A query is dead if the Time-To-Live (TTL) has been
+exceeded or the query is older than a minute old. The TTL defines the depth in the network the
+actual query is going to travel. Thus, if the query is not dead the ``SearchManager`` search for
+related public forums that the peer might have subscribed and if the that is the case the results
+are pushed back to the requester, a local copy is kept temporarily on the cache, decrements the TTL
+and if the query is not dead yet it calculates the next hops to forward the query (k-random walk).
+ 
+```java
+//Create and send a text query
+TextQuery query = new TextQuery(qid, contextId, queryText, EntityType.FORUM, timpestamp, 2);
+queryManager.sendQuery(query);
+
+//Create and send a location query
+LocationQuery query = new LocationQuery(qid, contextId, lat, lng, radius, EntityType.FORUM, timpestamp, 2);
+queryManager.sendQuery(query);
+```
+
+Finally, the ``QueryResponseReceiver`` is responsible for handling the responses on queries
+either the peer has posted or forwarded. In case, the ``QueryResponseReceiver`` receives a
+response for a query the user had forwarded, it merges the results and pushes the updated results
+to the peer he/she has received the query from. In case the response is related to a query the
+user had sent the ``QueryResponseReceiver`` broadcasts a ``new QueryResultsReceivedEvent(queryResponse)``
+Make sure the Activity you have created to perform queries implements ``EventListener`` 
+
+```java
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
+import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.queries.QueryResponse;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.QueryResultsReceivedEvent;
+
+public class QueryActivity extends AppCompatActivity implements EventListener {
+
+    @Inject
+    EventBus eventBus;
+    
+    @Override
+	public void onCreate(@Nullable Bundle state) {
+        super.onCreate(state);
+	}
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        eventBus.addListener(this);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        eventBus.removeListener(this);
+    }
+
+    public void eventOccurred(Event e) {
+            if (e instanceof QueryResultsReceivedEvent) {
+                QueryResponse queryResponse = ((QueryResultsReceivedEvent) e).getQueryResponse();
+                //Do something with the results e.g. display the results 
+            }
+    }
+
+}
+```
 
 ## Project Structure
 This project contains the following components:
