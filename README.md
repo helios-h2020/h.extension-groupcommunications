@@ -44,7 +44,22 @@ The ``ReliableCommumicationManagerImpl`` implements Lifecycle Manager's OpenData
  details of the forums and private groups the user has subscribed in the past in order to
  subscribe on startup and receive new messages, if exist. 
 
+## EventBus
+
+The ``EventBus`` is one of the most crucial components in the Group Communications Module. It is
+responsible for broadcasting events and notify subscribed listeners, it simplifies the
+communication between components and performs well with UI artifacts and background threads. 
+
+```java
+//Adds a listener to be notified when events occur. In this case MessagingManagerImpl implements EventListener
+eventBus.addListener(messagingManager);
+
+//Asynchronously notifies all listeners that a message has been added to the database.
+eventBus.broadcast(new MessageAddedEvent(message, isIncoming, messageState));
+```
+
 ## Context Management
+
 The idea of Context(s) is unique to the HELIOS ecosystem and our main goal is to address the dynamic
 nature of human communication in three different dimensions: contextual, spatial and temporal
 . The interactions among different users in the network are recorded in the contextual ego network
@@ -87,10 +102,81 @@ sharingContextManager.sendContextInvitation(contextInvitation);
 sharingContextManager.acceptContextInvitation(contextInvitation);     
 
 //reject context invitation
-haringContextManager.rejectContextInvitation(contextInvitation);
+sharingContextManager.rejectContextInvitation(contextInvitation);
 
 //load pending context invitations
 Collection<ContextInvitation> pendingContextInvitations = contextManager.getPendingContextInvitations();
+```
+
+The Group Communications Services broadcasts several events related to actions on contexts: 
+
+* when a new Context has been added to the database, the EventBus broadcasts a
+``ContextAddedEvent``. This event occurs through the ``ContextManagerImpl`` when adding a new
+ context.
+* when a new Context has been removed from the database, the EventBus broadcasts a
+``ContextAddedEvent``. This event occurs through the ``ContextManagerImpl`` when removing an
+existing context.
+* when a new ``ContextInvitation`` has been added to the database, the EventBus broadcasts
+a ``ContextInvitationAddedEvent``. More specifically, this event occurs either when sending a new
+context invitation (through the ``SharingContextManager``) or when a context invitation has been
+received (through the ``ContextInvitationReceiver``)
+* the EventBus broadcasts a ``RemovePendingContextEvent`` which is occurred when rejecting
+/accepting a context invitation (through the ``SharingContextManager``). Note that different
+connections could have sent invitations for the same context. When a user accepting/rejecting a
+context invitation automatically accepts/rejects that invitations from all his/her connections. 
+* when a friend accepts/rejects a context invitation the user had previously sent the
+``SharingContextManagerImpl`` notifies the user by sending some ``ConnectionInfo``. Then the
+``ContextInvitationReceiver`` removes the ``ContextInvitation`` from the database and broadcasts a
+``ContextInvitationRemovedEvent``. 
+
+```java
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.RemovePendingContextEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationRemovedEvent;
+
+public class ContextActivity extends AppCompatActivity implements EventListener {
+
+    @Inject
+    EventBus eventBus;
+    
+    @Override
+	public void onCreate(@Nullable Bundle state) {
+        super.onCreate(state);
+	}
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        eventBus.addListener(this);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        eventBus.removeListener(this);
+    }
+
+    @Override
+    public void eventOccurred(Event e) {
+             if (e instanceof ContextAddedEvent) {
+                 //do something
+             }else if (e instanceof ContextRemovedEvent) {
+                 //do something
+             } else if (e instanceof ContextInvitationAddedEvent) {
+                //do something
+             } else if(e instanceof RemovePendingContextEvent) {
+                //do something
+             } else if(e instanceof ContextInvitationRemovedEvent){
+                //do something
+             }
+    }
+
+}
 ```
 
 ## Contact Management
