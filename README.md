@@ -216,6 +216,71 @@ contactManager.getContacts();
 contactManager.getContacts(contextId);
 ```
 
+The GCS broadcasts several events related to contact management actions:
+
+* when a ``PendingContact`` is added to the database, the ``EventBus`` broadcasts a
+``PendingContactAddedEvent``. This event occurs either through the ``ConnectionManagerImpl`` when
+sending a connection request to a peer or when a new connection request has been received by
+another peer through the ``ConnectionRequestReceiver``. 
+* when a ``PendingContact`` is removed from the database, the ``EventBus`` broadcasts a
+``PendingContactRemovedEvent``. This event occurs either through the ``ConnectionManagerImpl`` when
+the user has accepted/rejected a connection request or when a connection response to a request has
+been received by the ``ConnectionRequestReceiver``. 
+* when a new ``Contact`` is added to the database, the ``EventBus`` broadcasts a
+ ``ContactAddedEvent``. This event occurs either through the ``ConnectionManagerImpl`` when
+accepting a connection request from a peer or when a connection response has been received by
+another peer through the ``ConnectionRequestReceiver``. 
+* when a ``Contact`` is removed from the database, the ``EventBus`` broadcasts a
+``ContactRemovedEvent``. This event occurs through the ``ContactManagerImpl`` when
+the user removes the contact from the contact list. 
+
+```java
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PendingContactAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PendingContactRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContactAddedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContactRemovedEvent;
+
+public class ContactsActivity extends AppCompatActivity implements EventListener {
+
+    @Inject
+    EventBus eventBus;
+    
+    @Override
+	public void onCreate(@Nullable Bundle state) {
+        super.onCreate(state);
+	}
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        eventBus.addListener(this);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        eventBus.removeListener(this);
+    }
+
+    @Override
+    public void eventOccurred(Event e) {
+             if (e instanceof PendingContactAddedEvent) {
+                 //do something
+             }else if (e instanceof PendingContactRemovedEvent) {
+                 //do something
+             } else if (e instanceof ContactAddedEvent) {
+                //do something
+             } else if(e instanceof ContactRemovedEvent) {
+                //do something
+             }
+    }
+
+}
+```
+
 ## Profile Management
 
 Every Social Media platform allows its users to define their profiles. GCS provides a
