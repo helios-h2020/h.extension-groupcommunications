@@ -1,23 +1,40 @@
 # HELIOS Group Communication Services
 
-# Table of Contents
+## Table of Contents
 [Introduction](#Introduction)
+
 [Dependencies](#Dependencies)
+    
     [How to configure HELIOS dependencies through HELIOS Nexus](#How to configure HELIOS dependencies through HELIOS Nexus)
+    
     [How to configure HELIOS dependencies through jitpack](#How to configure HELIOS dependencies through jitpack)
+   
     [Other Dependencies](#Other Dependencies)
+
 [Communication Manager](#Communication Manager)
+
 [Event Bus](#EventBus)
+
 [Context Management](#Context Management)
+
 [Contact Management](#Contact Management)
+
 [Profile Management](#Profile Management)
+
 [Group Management](#Group Management)
+    
     [Private Groups](#Private Groups)
+    
     [Forums](#Forums)
+        
         [Forum Membership Management](#Forum Membership Management)
+
 [Messaging](#Messaging)
+
 [Resource Discovery](#Resource Discovery)
+
 [Mining Tasks](#Mining Tasks)
+
 [Project Structure](#Project Structure)
 
 ## Introduction
@@ -372,40 +389,40 @@ dependencies {
     //dependencies of HELIOS modules
     implementation 'eu.h2020.helios_social.modules.groupcommunications:groupcommunications:1.0.10'
     implementation 'eu.h2020.helios_social.modules.groupcommunications-utils:groupcommunications-utils:1.0.7'
-	implementation 'eu.h2020.helios_social.modules.groupcommunications-db:groupcommunications-db:1.0.3'
-	implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.10'	
-	implementation 'eu.h2020.helios_social.modules.filetransfer:filetransfer:1.0.10'
+    implementation 'eu.h2020.helios_social.modules.groupcommunications-db:groupcommunications-db:1.0.3'
+    implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.10'	
+    implementation 'eu.h2020.helios_social.modules.filetransfer:filetransfer:1.0.10'
     implementation 'eu.h2020.helios_social.core.storage:storage:1.0.0'
     implementation 'eu.h2020.helios_social.core.messaging:messaging:1.1.10'
     implementation 'eu.h2020.helios_social.core.context:context:1.0.10'
-	implementation ('eu.h2020.helios_social.core.messagingnodejslibp2ptest:messagingnodejslibp2ptest:1.0.15')
-	implementation 'eu.h2020.helios_social.modules.contentawareprofiling:contentawareprofiling:1.0.13'
+    implementation ('eu.h2020.helios_social.core.messagingnodejslibp2ptest:messagingnodejslibp2ptest:1.0.15')
+    implementation 'eu.h2020.helios_social.modules.contentawareprofiling:contentawareprofiling:1.0.13'
     implementation 'eu.h2020.helios_social.core.contextualegonetwork:contextualegonetwork:1.0.20'
-	implementation('com.github.helios-h2020:h.extension-SocialGraphMining:1.0.3') {
-		exclude module: 'h.core-SocialEgoNetwork'
-	}
+    implementation('com.github.helios-h2020:h.extension-SocialGraphMining:1.0.3') {
+        exclude module: 'h.core-SocialEgoNetwork'
+    }
 
     //other dependencies
-	implementation 'io.tus.java.client:tus-java-client:0.4.1'
-	implementation 'io.tus.android.client:tus-android-client:0.1.9'
-	implementation 'org.jetbrains:annotations:15.0'
-	implementation 'androidx.core:core-ktx:1.3.2'
-	implementation 'com.google.android.material:material:1.2.1'
-	implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-	implementation 'com.google.android.gms:play-services-location:17.1.0'
-	implementation 'com.jakewharton.threetenabp:threetenabp:1.2.1'
-	implementation 'androidx.preference:preference:1.1.1'
-	implementation 'com.google.code.gson:gson:2.8.6'
-	implementation("com.google.guava:guava:29.0-android")	
-	implementation "androidx.room:room-runtime:$room_version"
-	implementation "androidx.work:work-runtime:$work_version"
-	implementation "com.google.dagger:dagger:2.24"
+    implementation 'io.tus.java.client:tus-java-client:0.4.1'
+    implementation 'io.tus.android.client:tus-android-client:0.1.9'
+    implementation 'org.jetbrains:annotations:15.0'
+    implementation 'androidx.core:core-ktx:1.3.2'
+    implementation 'com.google.android.material:material:1.2.1'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'com.google.android.gms:play-services-location:17.1.0'
+    implementation 'com.jakewharton.threetenabp:threetenabp:1.2.1'
+    implementation 'androidx.preference:preference:1.1.1'
+    implementation 'com.google.code.gson:gson:2.8.6'
+    implementation("com.google.guava:guava:29.0-android")	
+    implementation "androidx.room:room-runtime:$room_version"
+    implementation "androidx.work:work-runtime:$work_version"
+    implementation "com.google.dagger:dagger:2.24"
     implementation 'org.tensorflow:tensorflow-lite:0.0.0-nightly'
-
-	implementation 'androidx.appcompat:appcompat:1.1.0'
-	implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
-	annotationProcessor 'com.google.dagger:dagger-compiler:2.24'
-	implementation 'com.github.javafaker:javafaker:1.0.2'
+    
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
+    annotationProcessor 'com.google.dagger:dagger-compiler:2.24'
+    implementation 'com.github.javafaker:javafaker:1.0.2'
 }
 ```
 
