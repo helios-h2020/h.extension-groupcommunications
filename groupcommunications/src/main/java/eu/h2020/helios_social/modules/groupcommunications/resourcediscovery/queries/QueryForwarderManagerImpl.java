@@ -52,7 +52,7 @@ public class QueryForwarderManagerImpl implements QueryForwarderManager {
         if (queryForwaderClass.getName().equals(RandomWalkQueryForwarder.class.getName()))
             return new RandomWalkQueryForwarder(contactManager);
         else if (queryForwaderClass.getName().equals(KRandomWalkQueryForwarder.class.getName()))
-            return new RandomWalkQueryForwarder(contactManager);
+            return new KRandomWalkQueryForwarder(contactManager);
         else if (queryForwaderClass.getName().equals(FloodingQueryForwarder.class.getName()))
             return new FloodingQueryForwarder(contactManager);
         else return null;

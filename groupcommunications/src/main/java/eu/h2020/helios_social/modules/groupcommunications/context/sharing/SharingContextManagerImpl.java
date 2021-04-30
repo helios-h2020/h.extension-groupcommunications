@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
-import eu.h2020.helios_social.modules.groupcommunications_utils.context.ContextInvitationAutoResponseEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationAutoResponseEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;

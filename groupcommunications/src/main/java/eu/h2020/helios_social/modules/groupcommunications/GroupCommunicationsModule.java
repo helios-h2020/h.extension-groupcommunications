@@ -36,7 +36,7 @@ import eu.h2020.helios_social.modules.groupcommunications.privateconversation.Pr
 import eu.h2020.helios_social.modules.groupcommunications.privategroup.PrivateGroupModule;
 import eu.h2020.helios_social.modules.groupcommunications.profile.ProfileModule;
 import eu.h2020.helios_social.modules.groupcommunications.profile.sharing.ProfileRequestReceiver;
-import eu.h2020.helios_social.modules.groupcommunications.utils.InternalStorageConfig;
+import eu.h2020.helios_social.modules.groupcommunications.api.utils.InternalStorageConfig;
 import eu.h2020.helios_social.modules.socialgraphmining.GNN.GNNMiner;
 import eu.h2020.helios_social.modules.socialgraphmining.GNN.operations.Optimizer;
 

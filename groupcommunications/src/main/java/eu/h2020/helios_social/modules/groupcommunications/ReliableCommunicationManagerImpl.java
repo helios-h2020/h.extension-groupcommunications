@@ -99,7 +99,6 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
 
     @Override
     public void startService() throws ServiceException {
-        //AndroidThreeTen.init(appContext);
         heliosMessaging.setContext(appContext);
         heliosMessaging.setFilterJoinMsg(false);
         try {
