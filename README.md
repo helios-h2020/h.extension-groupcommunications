@@ -1,41 +1,41 @@
 # HELIOS Group Communication Services
 
 ## Table of Contents
-[Introduction](#Introduction)
+[Introduction](#introduction)
 
-[Dependencies](#Dependencies)
+[Dependencies](#dependencies)
     
-    [How to configure HELIOS dependencies through HELIOS Nexus](#How to configure HELIOS dependencies through HELIOS Nexus)
+* [How to configure HELIOS dependencies through HELIOS Nexus](#how-to-configure-helios-dependencies-through-helios-nexus)
     
-    [How to configure HELIOS dependencies through jitpack](#How to configure HELIOS dependencies through jitpack)
+* [How to configure HELIOS dependencies through jitpack](#how-to-configure-helios-dependencies-through-jitpack)
    
-    [Other Dependencies](#Other Dependencies)
+[Other Dependencies](#other-dependencies)
 
-[Communication Manager](#Communication Manager)
+[Communication Manager](#communication-manager)
 
-[Event Bus](#EventBus)
+[Event Bus](#eventbus)
 
-[Context Management](#Context Management)
+[Context Management](#context-management)
 
-[Contact Management](#Contact Management)
+[Contact Management](#contact-management)
 
-[Profile Management](#Profile Management)
+[Profile Management](#profile-management)
 
-[Group Management](#Group Management)
+[Group Management](#group-management)
     
-    [Private Groups](#Private Groups)
+* [Private Groups](#private-groups)
     
-    [Forums](#Forums)
+* [Forums](#forums)
         
-        [Forum Membership Management](#Forum Membership Management)
+    * [Forum Membership Management](#forum-membership-management)
 
-[Messaging](#Messaging)
+[Messaging](#messaging)
 
-[Resource Discovery](#Resource Discovery)
+[Resource Discovery](#resource-discovery)
 
-[Mining Tasks](#Mining Tasks)
+[Mining Tasks](#mining-tasks)
 
-[Project Structure](#Project Structure)
+[Project Structure](#project-structure)
 
 ## Introduction
 
