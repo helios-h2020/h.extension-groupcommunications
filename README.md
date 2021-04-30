@@ -1,5 +1,16 @@
 # HELIOS Group Communication Services
 
+Communication plays an important role in everyday life. At the same time, the widespread use of 
+smartphones has led to the increasing use of communication apps that allow users to maintain 
+connections with friends and family around the globe. The last few years, modern messaging apps 
+allow individuals to communicate via messaging. HELIOS is a modular peer-to-peer social media 
+platform that aims to address the dynamic nature of human communications. HELIOS intends to return 
+control of personal data to users and adopts security-by-design and privacy-by-design principles. 
+**HELIOS Group Communication Services (GCS)** are built on top of the HELIOS platform and
+expose several communication management functionalities through a Decentralized Group Management 
+framework. Here you can find details about the functionalities the h.extension
+-groupcommunications module offers and how to include the module to your own project. 
+
 ## Table of Contents
 [Introduction](#introduction)
 
@@ -9,7 +20,7 @@
     
 * [How to configure HELIOS dependencies through jitpack](#how-to-configure-helios-dependencies-through-jitpack)
    
-[Other Dependencies](#other-dependencies)
+* [Other Dependencies](#other-dependencies)
 
 [Communication Manager](#communication-manager)
 
