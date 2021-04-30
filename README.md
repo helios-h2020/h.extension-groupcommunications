@@ -1,4 +1,25 @@
-# HELIOS Group Communication Services #
+# HELIOS Group Communication Services
+
+# Table of Contents
+[Introduction](#Introduction)
+[Dependencies](#Dependencies)
+    [How to configure HELIOS dependencies through HELIOS Nexus](#How to configure HELIOS dependencies through HELIOS Nexus)
+    [How to configure HELIOS dependencies through jitpack](#How to configure HELIOS dependencies through jitpack)
+    [Other Dependencies](#Other Dependencies)
+[Communication Manager](#Communication Manager)
+[Event Bus](#EventBus)
+[Context Management](#Context Management)
+[Contact Management](#Contact Management)
+[Profile Management](#Profile Management)
+[Group Management](#Group Management)
+    [Private Groups](#Private Groups)
+    [Forums](#Forums)
+        [Forum Membership Management](#Forum Membership Management)
+[Messaging](#Messaging)
+[Resource Discovery](#Resource Discovery)
+[Mining Tasks](#Mining Tasks)
+[Project Structure](#Project Structure)
+
 ## Introduction
 
 HELIOS Group Communication Services offer a Decentralized Group Communication Management 
@@ -13,6 +34,380 @@ of different managers to facilitate the development of group communication appli
 communications and interactions are stored locally in the user's device in a database component. 
 
 ![HELIOS Group Communication Services](docs/images/GCS-Figure.jpg "HELIOS Group Communication Services Overview")
+
+## Dependencies
+
+The implementation of the h.extension-groupcommunications module is granulated among four
+different projects:
+
+* **h.extension-groupcommunications-api** that contains the abstraction logic of the
+groupcommunications module
+* **h.extension-groupcommunications-utils** that contains the abstraction logic of the storage
+related functionality
+* **h.extension-groupcommunications-db** that contains the implementation of the storage related
+functionality
+* **h.extension-groupcommunications** that contains the implementation of the Group Communication
+Services
+
+For the development of the h.extension-groupcommunications module, we used [dagger](https://dagger
+.dev/) framework for dependency injection. In Dagger, components need to know about their 
+subcomponents. This information is included in a Dagger module added to the parent component. 
+In Android, you usually create a Dagger graph that lives in your application class because you want 
+an instance of the graph to be in memory as long as the app is running. In this way, the graph is 
+attached to the app lifecycle.  In some cases, you might also want to have the application context 
+available in the graph. For that, you would also need the graph to be in the ``Application`` 
+class. Because the interface that generates the graph is annotated with @Component, you can call 
+it ``ApplicationComponent``. You usually keep an instance of that component in your custom 
+``Application`` class and call it every time you need the application graph. Thus, to include
+groupcommunications module to your project you need to include dagger in your project and define
+ the following classes: 
+
+```java
+import android.app.Application;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.StrictMode;
+
+import org.jetbrains.annotations.NotNull;
+
+import eu.h2020.helios_social.modules.groupcommunications_utils.crypto.KeyStrengthener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseConfig;
+
+import java.io.File;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
+import dagger.Module;
+import dagger.Provides;
+import eu.h2020.helios_social.modules.groupcommunications.preferences.SharedPreferencesHelper;
+import eu.h2020.helios_social.modules.groupcommunications.api.utils.ContextualEgoNetworkConfig;
+import eu.h2020.helios_social.modules.groupcommunications.api.utils.InternalStorageConfig;
+
+import static android.content.Context.MODE_PRIVATE;
+import static android.os.Build.VERSION.SDK_INT;
+
+@Module
+public class AppModule {
+
+	private static final String PREF_FILE_NAME = "peer-info";
+
+	private final Application application;
+
+	public AppModule(Application application) {
+		this.application = application;
+	}
+
+	@Provides
+	@Singleton
+	Application providesApplication() {
+		return application;
+	}
+
+    //provides info for the database configuration
+	@Provides
+	@Singleton
+	DatabaseConfig provideDatabaseConfig(Application app) {
+		StrictMode.ThreadPolicy tp = StrictMode.allowThreadDiskReads();
+		StrictMode.allowThreadDiskWrites();
+		File dbDir = app.getApplicationContext().getDir("db", MODE_PRIVATE);
+		File keyDir = app.getApplicationContext().getDir("key", MODE_PRIVATE);
+		StrictMode.setThreadPolicy(tp);
+		KeyStrengthener keyStrengthener = SDK_INT >= 23
+				? new AndroidKeyStrengthener() : null;
+		return new AndroidDatabaseConfig(dbDir, keyDir, keyStrengthener);
+	}
+
+    //provides info for the internal storage configuration for the contextual ego network
+	@Provides
+    @Singleton
+	InternalStorageConfig providesInternalStorageConfig(
+			Application app) {
+		File internalStorageDir =
+				app.getApplicationContext().getDir("egonetwork", MODE_PRIVATE);
+		return new ContextualEgoNetworkConfig(internalStorageDir);
+	}
+
+
+	@Provides
+	SharedPreferences provideSharedPreferences(Application app) {
+		return app.getSharedPreferences("db", MODE_PRIVATE);
+	}
+
+    //provides helper for keeping peer-info in SharedPreferences
+	@Provides
+	@Singleton
+	SharedPreferencesHelper provideUsernameHelper(@NotNull Application app) {
+		SharedPreferences prefManager = app.getApplicationContext()
+				.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE);
+		return new SharedPreferencesHelper(prefManager);
+	}
+
+}
+```
+
+```java
+import android.app.Activity;
+
+@Component
+(modules = {
+        GroupCommunicationsModule.class,
+        GroupCommunicationsDBModule.class,
+        AppModule.class
+})
+public interface ApplicationComponent extends GroupCommunicationsDBEagerSingletons, GroupCommunicationsEagerSingletons{
+
+    // Exposed objects
+
+    @CryptoExecutor
+    Executor cryptoExecutor();
+
+    PasswordStrengthEstimator passwordStrengthIndicator();
+
+    @DatabaseExecutor
+    Executor databaseExecutor();
+
+    MessageTracker messageTracker();
+
+    LifecycleManager lifecycleManager();
+
+    IdentityManager identityManager();
+
+    EventBus eventBus();
+
+    ContextFactory contextFactory();
+
+    ConnectionManager connectionManager();
+
+    ConnectionRegistry connectionRegistry();
+
+    PendingContactFactory pendingContactFactory();
+
+    ContactManager contactManager();
+
+    ConversationManager conversationManager();
+
+    MessagingManager messagingManager();
+
+    PrivateMessageFactory privateMessageFactory();
+
+    GroupManager groupManager();
+
+    ForumMembershipManager forumMembershipManager();
+
+    GroupInvitationFactory groupInviteFactory();
+
+    GroupFactory groupFactory();
+
+    GroupMessageFactory groupMessageFactory();
+
+    ContextManager contextManager();
+
+    SharingContextManager sharingContextManager();
+
+    ContextInvitationFactory contextInviteFactory();
+
+    ProfileManager profileManager();
+
+    SharingProfileManager sharingProfileManager();
+
+    ForumManager forumManager();
+
+    SharingGroupManager sharingGroupManager();
+
+    SettingsManager settingsManager();
+
+    AndroidExecutor androidExecutor();
+
+    Clock clock();
+
+    @IoExecutor
+    Executor ioExecutor();
+
+    AccountManager accountManager();
+
+    LocationUtils locationUtils();
+
+    ContextualEgoNetwork contextualEgoNetwork();
+
+    MiningManager miningManager();
+
+    CommunicationManager communicationManager();
+
+    QueryManager queryManager();
+
+}
+```
+
+```java
+import android.app.Activity;
+
+import java.util.Collection;
+import java.util.logging.LogRecord;
+
+
+public interface GroupCommunicationsApplication {
+
+	ApplicationComponent getApplicationComponent();
+}
+```
+
+```java
+import android.app.Application;
+
+public class GroupCommunicationsApplicationImpl extends Application
+        implements GroupCommunicationsApplication {
+    private ApplicationComponent applicationComponent;
+
+    public void onCreate() {
+        super.onCreate();
+        applicationComponent = createApplicationComponent();
+    }
+
+
+    @Override
+    public ApplicationComponent getApplicationComponent() {
+        return applicationComponent;
+    }
+
+    private ApplicationComponent createApplicationComponent() {
+        ApplicationComponent applicationComponent =  DaggerAndroidComponent.builder()
+                                                                .appModule(new AppModule(this))
+                                                                .build();
+        GroupCommunicationsDBEagerSingletons.Helper
+                        .injectEagerSingletons(applicationComponent);
+        GroupCommunicationsEagerSingletons.Helper
+                        .injectEagerSingletons(applicationComponent);
+        return applicationComponent;
+    }
+
+}
+```
+
+More information about dagger and dependency injection in Android can be found [here](https://developer.android.com/training/dependency-injection/dagger-android).
+
+In the following sections, we describe the two ways, you can configure HELIOS dependencies.
+
+### How to configure HELIOS dependencies through HELIOS Nexus
+
+To manage project dependencies developed by HELIOS, the approach proposed is to use a private Maven
+repository with Nexus.
+
+Similar to other dependencies available in Maven Central, Google or others repositories, we
+specify the Nexus repository provided by ATOS: `https://builder.helios-social.eu/repository
+/helios-repository/`
+
+This URL makes the project dependencies available.
+
+To access, we simply need credentials, that we will define locally in the variables `heliosUser` and `heliosPassword`.
+
+The `build.gradle` of the project define the Nexus repository and the credential variables in this way:
+
+```
+repositories {
+        ...
+        maven {
+            url "https://builder.helios-social.eu/repository/helios-repository/"
+            credentials {
+                username = heliosUser
+                password = heliosPassword
+            }
+        }
+    }
+```
+
+And the variables of Nexus's credentials are stored locally at `~/.gradle/gradle.properties`:
+
+### How to configure HELIOS dependencies through jitpack
+
+Instead of using HELIOS Nexus repository alternatively, you can use JitPack repository that builds 
+Git projects on demand and provides you with ready-to-use artifacts. First, you need to add the
+JitPack repository to your `build.gradle` file of the project.
+
+```
+allprojects {
+	repositories {
+		...
+		maven { url 'https://jitpack.io' }
+	}
+}
+```
+
+Then include the dependencies on the `build.gradle` file of your app/module:
+
+```
+dependencies {
+        implementation 'com.github.helios-h2020:h.extension-groupcommunications:1.0.0'
+        implementation 'com.github.helios-h2020:h.extension-groupcommunications-db:1.0.0'
+        implementation 'com.github.helios-h2020:h.extension-groupcommunications-api:1.0.0'
+        implementation 'com.github.helios-h2020:h.extension-groupcommunications-utils:1.0.0'
+}
+```
+
+### Other Dependencies
+
+Group Communication Services integrates the functionality of different HELIOS modules and these
+dependencies need to be also defined in the `build.gradle` file. In detail, `h.extension
+-groupcommunications` module depends on the following HELIOS modules:
+
+* `h.core-Messaging `
+* `h.core-Messaging-NodeJSlibP2P `
+* `h.core-SocialEgoNetwork `
+* `h.core-Context`
+* `h.core-Storage`
+* `h.extension-SocialGraphMining`
+* `h.extension-MediaStreaming-VideoCall`
+* `h.extension-MediaStreaming-FileTransfer`
+* `h.extension-ContentAwareProfiling `
+
+Below, you can find all the dependencies need to be defined in your project along with the
+groupcommunications module. 
+
+```
+kotlin_version = '1.4.10'
+work_version = '2.4.0'
+room_version = '2.2.6'
+
+dependencies {
+    //dependencies of HELIOS modules
+    implementation 'eu.h2020.helios_social.modules.groupcommunications:groupcommunications:1.0.10'
+    implementation 'eu.h2020.helios_social.modules.groupcommunications-utils:groupcommunications-utils:1.0.7'
+	implementation 'eu.h2020.helios_social.modules.groupcommunications-db:groupcommunications-db:1.0.3'
+	implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.10'	
+	implementation 'eu.h2020.helios_social.modules.filetransfer:filetransfer:1.0.10'
+    implementation 'eu.h2020.helios_social.core.storage:storage:1.0.0'
+    implementation 'eu.h2020.helios_social.core.messaging:messaging:1.1.10'
+    implementation 'eu.h2020.helios_social.core.context:context:1.0.10'
+	implementation ('eu.h2020.helios_social.core.messagingnodejslibp2ptest:messagingnodejslibp2ptest:1.0.15')
+	implementation 'eu.h2020.helios_social.modules.contentawareprofiling:contentawareprofiling:1.0.13'
+    implementation 'eu.h2020.helios_social.core.contextualegonetwork:contextualegonetwork:1.0.20'
+	implementation('com.github.helios-h2020:h.extension-SocialGraphMining:1.0.3') {
+		exclude module: 'h.core-SocialEgoNetwork'
+	}
+
+    //other dependencies
+	implementation 'io.tus.java.client:tus-java-client:0.4.1'
+	implementation 'io.tus.android.client:tus-android-client:0.1.9'
+	implementation 'org.jetbrains:annotations:15.0'
+	implementation 'androidx.core:core-ktx:1.3.2'
+	implementation 'com.google.android.material:material:1.2.1'
+	implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+	implementation 'com.google.android.gms:play-services-location:17.1.0'
+	implementation 'com.jakewharton.threetenabp:threetenabp:1.2.1'
+	implementation 'androidx.preference:preference:1.1.1'
+	implementation 'com.google.code.gson:gson:2.8.6'
+	implementation("com.google.guava:guava:29.0-android")	
+	implementation "androidx.room:room-runtime:$room_version"
+	implementation "androidx.work:work-runtime:$work_version"
+	implementation "com.google.dagger:dagger:2.24"
+    implementation 'org.tensorflow:tensorflow-lite:0.0.0-nightly'
+
+	implementation 'androidx.appcompat:appcompat:1.1.0'
+	implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
+	annotationProcessor 'com.google.dagger:dagger-compiler:2.24'
+	implementation 'com.github.javafaker:javafaker:1.0.2'
+}
+```
 
 ## Communication Manager
 
@@ -302,12 +697,66 @@ profileManager.updateProfile(p);
 sharingProfileManager.sendProfileRequest(contactId,contextId);
 
 /*Send profile response to profile request to contact .Note that, this response is sent
- automatically from the SharingProfileManagerImpl when a ProfileRequestReceivedEvent occurs
-. ProfileRequestReceivedEvents are broadcasted by the ProfileRequestReceiver.
+ automatically from the SharingProfileManagerImpl when a ProfileRequestReceivedEvent occurs. 
+ProfileRequestReceivedEvents are broadcasted by the ProfileRequestReceiver.
 */
 sharingProfileManager.sendProfileResponse(contactId,contextId);
 ```
 
+After sending a profile request to a friend, if the friend is online he/she sends back the
+requested profile which is received through the ``ProfileRequestReceiver`` and then
+``ProfileRequestReceiver`` broadcasts a ``ProfileReceivedEvent`` that can be leveraged by an
+activity.
+
+```java
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ProfileReceivedEvent;
+
+public class ContactProfileActivity extends AppCompatActivity implements EventListener {
+
+    @Inject
+    EventBus eventBus;
+
+    private ContactId contactId;
+    
+    @Override
+	public void onCreate(@Nullable Bundle state) {
+        super.onCreate(state);
+        Intent i = getIntent();
+        String id = i.getStringExtra(CONTACT_ID);
+        if (id == null) throw new IllegalStateException();
+        contactId = new ContactId(id);
+	}
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        eventBus.addListener(this);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        eventBus.removeListener(this);
+    }
+
+    @Override
+    public void eventOccurred(Event e) {
+             if (e instanceof ProfileReceivedEvent) {
+                    ProfileReceivedEvent profileReceivedEvent = (ProfileReceivedEvent) e;
+                  if (contactId.getId().equals(profileReceivedEvent.getContactId().getId())) {
+                        displayProfile(profileReceivedEvent.getProfile());
+                   }
+             }
+    }
+
+    private void displayProfile(Profile profile){
+        //display the profile
+    }   
+}
+```
 ## Group Management
 
 Group communications refers to communication between affiliate groups of users. Through groups
@@ -427,7 +876,7 @@ sharingGroupManager.sendGroupInvitation(groupInvitation);
 
 ```
 
-### Forum Membership Management
+#### Forum Membership Management
 GCS provide a Forum Membership management mechanism to allow administrators and moderators to
 revoke access rights from a user or a group of users if they behave inappropriately. Even though
 forums can be shared by their members, common forum members do not have access to the global
