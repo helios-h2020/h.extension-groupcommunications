@@ -28,6 +28,8 @@ import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.Priva
 import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroupManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.sharing.GroupInvitation;
 import eu.h2020.helios_social.modules.groupcommunications.api.utils.Pair;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.JoinGroupEvent;
 
 import static eu.h2020.helios_social.modules.groupcommunications.api.group.GroupConstants.GROUP_SHOW_TRUE_SELF;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.PEER_FAKE_ID;
@@ -41,17 +43,19 @@ public class GroupManagerImpl implements GroupManager<Transaction> {
     private final IdentityManager identityManager;
     private final Parser parser;
     private final Encoder encoder;
+    private final EventBus eventBus;
 
     @Inject
     public GroupManagerImpl(DatabaseComponent db,
                             PrivateGroupManager privateGroupManager, ForumManager forumManager,
-                            IdentityManager identityManager, Parser parse, Encoder encoder) {
+                            IdentityManager identityManager, EventBus eventBus, Parser parse, Encoder encoder) {
         this.db = db;
         this.privateGroupManager = privateGroupManager;
         this.identityManager = identityManager;
         this.parser = parse;
         this.forumManager = forumManager;
         this.encoder = encoder;
+        this.eventBus = eventBus;
     }
 
     @Override
@@ -73,12 +77,16 @@ public class GroupManagerImpl implements GroupManager<Transaction> {
         try {
             if (group instanceof PrivateGroup) {
                 privateGroupManager.addPrivateGroup(txn, (PrivateGroup) group);
+                eventBus.broadcast(new JoinGroupEvent(group.getId(), ((PrivateGroup) group).getPassword(), group.getGroupType()));
             } else if (group instanceof LocationForum) {
                 forumManager.addForum((LocationForum) group, ForumType.LOCATION, true);
+                eventBus.broadcast(new JoinGroupEvent(group.getId(), ((LocationForum) group).getPassword(), group.getGroupType()));
             } else if (group instanceof SeasonalForum) {
                 forumManager.addForum((SeasonalForum) group, ForumType.SEASONAL, true);
+                eventBus.broadcast(new JoinGroupEvent(group.getId(), ((SeasonalForum) group).getPassword(), group.getGroupType()));
             } else {
                 forumManager.addForum((Forum) group, ForumType.GENERAL, true);
+                eventBus.broadcast(new JoinGroupEvent(group.getId(), ((Forum) group).getPassword(), group.getGroupType()));
             }
             db.commitTransaction(txn);
         } finally {
@@ -95,10 +103,10 @@ public class GroupManagerImpl implements GroupManager<Transaction> {
             Forum forum = (Forum) group;
             if (forum instanceof LocationForum) {
                 forumManager.addForum(txn, (LocationForum) forum,
-                        ForumType.LOCATION, false);
+                                      ForumType.LOCATION, false);
             } else if (forum instanceof SeasonalForum) {
                 forumManager.addForum(txn, (SeasonalForum) forum,
-                        ForumType.SEASONAL, false);
+                                      ForumType.SEASONAL, false);
             } else {
                 forumManager.addForum(txn, forum, ForumType.GENERAL, false);
             }
@@ -224,7 +232,7 @@ public class GroupManagerImpl implements GroupManager<Transaction> {
         Transaction txn = db.startTransaction(false);
         try {
             db.removeGroupInvitation(txn, contactId,
-                    groupId);
+                                     groupId);
             db.commitTransaction(txn);
         } finally {
             db.endTransaction(txn);
