@@ -24,7 +24,6 @@ import eu.h2020.helios_social.core.messaging.HeliosTopic;
 import eu.h2020.helios_social.modules.groupcommunications.api.attachment.AttachmentManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Attachment;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Message;
-import eu.h2020.helios_social.modules.groupcommunications.messaging.event.PrivateMessageReceivedEvent;
 import eu.h2020.helios_social.modules.groupcommunications.privateconversation.PrivateMessageReceiver;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfEntry;
@@ -40,7 +39,7 @@ import eu.h2020.helios_social.modules.groupcommunications.api.messaging.GroupMes
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageState;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageTracker;
 import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerInfo;
-import eu.h2020.helios_social.modules.groupcommunications.messaging.event.GroupMessageReceivedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupMessageReceivedEvent;
 
 import static android.content.Context.DOWNLOAD_SERVICE;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.ATTACHMENTS;

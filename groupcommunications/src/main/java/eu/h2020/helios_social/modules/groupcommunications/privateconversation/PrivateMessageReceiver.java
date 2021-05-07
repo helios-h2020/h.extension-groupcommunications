@@ -38,8 +38,8 @@ import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageH
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageState;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageTracker;
 import eu.h2020.helios_social.modules.groupcommunications.api.mining.MiningManager;
-import eu.h2020.helios_social.modules.groupcommunications.messaging.event.PrivateMessageReceivedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageSentEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PrivateMessageReceivedEvent;
 import eu.h2020.helios_social.modules.socialgraphmining.SocialGraphMiner;
 
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.PRIVATE_MESSAGE_PROTOCOL;
@@ -127,7 +127,7 @@ public class PrivateMessageReceiver
                 String contextId =
                         db.getGroupContext(txn, privateMessage.getGroupId());
                 db.addMessage(txn, privateMessage, MessageState.DELIVERED,
-                        contextId, true);
+                              contextId, true);
                 MessageHeader messageHeader = new MessageHeader(
                         privateMessage.getId(),
                         privateMessage.getGroupId(),
@@ -168,7 +168,7 @@ public class PrivateMessageReceiver
         Interaction interaction = interactions.get(interactions.size() - 1);
         LOG.info("ack preferences: " + ack.getPreferences());
         miningManager.getSocialGraphMiner().newInteraction(interaction, ack.getPreferences(),
-                SocialGraphMiner.InteractionType.RECEIVE_REPLY);
+                                                           SocialGraphMiner.InteractionType.RECEIVE_REPLY);
         messageTracker.setDeliveredFlag(fields[2]);
         eventBus.broadcast(new MessageSentEvent(fields[2]));
 

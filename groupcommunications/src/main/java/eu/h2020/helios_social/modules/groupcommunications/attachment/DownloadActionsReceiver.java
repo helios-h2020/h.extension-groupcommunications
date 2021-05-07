@@ -18,22 +18,12 @@ import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbExcept
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.FormatException;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupMessageHeader;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageHeader;
-import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerId;
-import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerInfo;
-import eu.h2020.helios_social.modules.groupcommunications.messaging.event.GroupMessageReceivedEvent;
-import eu.h2020.helios_social.modules.groupcommunications.messaging.event.PrivateMessageReceivedEvent;
-import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
-import eu.h2020.helios_social.modules.groupcommunications_utils.db.Metadata;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
-import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupMessageReceivedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PrivateMessageReceivedEvent;
 
-import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.PEER_ALIAS;
-import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.PEER_FAKE_ID;
-import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.PEER_FUNNY_NAME;
-import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.PEER_ID;
-import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.PEER_REAL_NAME;
 
 public class DownloadActionsReceiver extends BroadcastReceiver {
     private static Logger LOG = Logger.getLogger(DownloadActionsReceiver.class.getName());
