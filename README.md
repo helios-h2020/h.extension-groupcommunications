@@ -932,6 +932,14 @@ Forum Member in the Forum Membership List and notifies the peer and moderators*/
 forumMembershipManager.updateForumMemberRole(forum, forumMember, updatedRole)
 ```
 
+The GCS broadcasts several events related to group management actions:
+
+* when a new ``GroupInvitation`` has been received and added to the database, the ``DatabaseComponent``
+broadcasts a ``GroupInvitationAddedEvent``. 
+* when a new ``GroupInvitation`` has been removed from the database, either because the user
+ accepted or rejected the invitation, the ``DatabaseComponent`` broadcasts a
+  ``GroupInvitationRemovedEvent``. 
+
 ## Messaging
 
 Messaging is the cornerstone of group communications. GCS offer a number of managers to
@@ -975,6 +983,87 @@ GroupMessageHeader header = (GroupMessageHeader) messagingManager.sendGroupMessa
 
 //MessageTrackerImpl marks the given message as read and updates the group count.
 messageTracker.setReadFlag(groupId, messageId);
+```
+
+The GCS broadcasts several events related to messaging actions:
+
+* when a private message has been received, the ``EventBus`` broadcasts a
+``PrivateMessageReceivedEvent``. This event is broadcasted either through the
+ ``PrivateMessageReceiver`` or the ``DownloadActionsReceiver`` when a set of attachments have
+  been successfully received.
+* similarly, when a group message has been received, the ``EventBus`` broadcasts a
+``GroupMessageReceivedEvent``. This event is broadcasted either through the
+ ``GroupMessageListener`` or the ``DownloadActionsReceiver`` when a set of attachments have
+been successfully received.
+* when a private message has been received successfully by the contact then he/she sends back to
+the sender a new Message of ``Message.Type.ACK`` and the ``PrivateMessageReceiver`` broadcasts a
+``MessageSentEvent``. If the contact is not online that ACK message will be sent back to the
+sender when the contact comes back online. 
+
+
+```java
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PrivateMessageReceivedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageSentEvent;
+
+public class PrivateConversationActivity extends AppCompatActivity implements EventListener {
+
+    @Inject
+    EventBus eventBus;
+
+    private ContactId contactId;
+    private String groupId;
+    
+    @Override
+	public void onCreate(@Nullable Bundle state) {
+        super.onCreate(state);
+        
+        Intent i = getIntent();
+        id = i.getStringExtra(CONTACT_ID);
+        groupId = i.getStringExtra(GROUP_ID);
+        if (id == null || groupId == null) throw new IllegalStateException();
+        contactId = new ContactId(id);
+        
+        //setContentView... and build this activity based on your needs. 
+	}
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        eventBus.addListener(this);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        eventBus.removeListener(this);
+    }
+
+    @Override
+    public void eventOccurred(Event e) {
+        if (e instanceof PrivateMessageReceivedEvent) {
+            PrivateMessageReceivedEvent p =  (PrivateMessageReceivedEvent) e;
+                if (p.getGroupId().equals(groupId)) {
+                    LOG.info("Message received...");
+                    onNewMessage(p.getMessageHeader());
+                }
+             } else if (e instanceof MessageSentEvent) {
+                MessageSentEvent messageSentEvent = (MessageSentEvent) e;
+                markMessage(messageSentEvent.getMessageId(), true);
+             } 
+    }
+
+    private void onNewMessage(MessageHeader h){
+        //hanlde the MessageHeader and display the new message on the chat
+    }
+    
+    private void markMessage(String messageId, boolean sent){
+        //mark message as sent in the ui
+    }
+
+}
 ```
 
 ## Resource Discovery
