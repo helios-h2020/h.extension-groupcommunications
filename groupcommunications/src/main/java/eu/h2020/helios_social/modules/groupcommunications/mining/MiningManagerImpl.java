@@ -120,7 +120,7 @@ public class MiningManagerImpl implements MiningManager, EventListener {
                     WorkRequest request = new OneTimeWorkRequest.Builder(ProfilingWorker.class).setConstraints(constraints)
                             .setInputData(new Data.Builder().putString("MODEL", ModelType.FINE.toString()).build()).build();
 
-                    workManager.beginUniqueWork(
+                    workManager.enqueueUniqueWork(
                             "ContentAwareProfiler",
                             ExistingWorkPolicy.KEEP,
                             (OneTimeWorkRequest) request
