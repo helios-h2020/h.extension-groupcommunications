@@ -6,8 +6,8 @@ allprojects {
         maven {
             url "https://builder.helios-social.eu/repository/helios-repository/"
             credentials {
-                username = "helios"
-                password = "h3l10sN3xu\$"
+                username = heliosUser
+                password = heliosPassword
             }
         }
         maven { url "https://jitpack.io" }
@@ -28,7 +28,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.5.4'
+        classpath 'com.android.tools.build:gradle:4.1.3'
         classpath 'ru.vyarus:gradle-animalsniffer-plugin:1.5.0'
         classpath files('libs/gradle-witness.jar')
     }
