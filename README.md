@@ -346,6 +346,13 @@ repositories {
 
 And the variables of Nexus's credentials are stored locally at `~/.gradle/gradle.properties`:
 
+```
+heliosUser=username
+heliosPassword=password
+```
+
+To request Nexus username and password, contact with: `jordi.hernandezv@atos.net`
+
 ### How to configure HELIOS dependencies through jitpack
 
 Instead of using HELIOS Nexus repository alternatively, you can use JitPack repository that builds 
