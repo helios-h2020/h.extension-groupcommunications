@@ -118,7 +118,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
         for (Map.Entry<String, HeliosMessagingReceiver> receiver : receivers
                 .entrySet()) {
             LOG.info(receiver.getValue().getClass().getSimpleName() +
-                    " has been registered to Communication Manager");
+                             " has been registered to Communication Manager");
             heliosMessaging.getDirectMessaging()
                     .addReceiver(receiver.getKey(), receiver.getValue());
         }
@@ -138,7 +138,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
 
         for (HeliosTopic groupTopic : groups) {
             LOG.info("Subscribed in: " + groupTopic.getTopicName() +
-                    " topic.");
+                             " topic.");
             try {
                 heliosMessaging.subscribe(groupTopic, privateGroupMessageListener);
             } catch (HeliosMessagingException e) {
@@ -274,7 +274,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
     public void subscribe(String groupId, String password) {
         try {
             heliosMessaging.subscribe(new HeliosTopic(groupId, password),
-                    privateGroupMessageListener);
+                                      privateGroupMessageListener);
         } catch (HeliosMessagingException e) {
             e.printStackTrace();
         }
@@ -305,11 +305,11 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
                 if (group instanceof PrivateGroup) {
                     PrivateGroup pg = (PrivateGroup) group;
                     groups.add(new HeliosTopic(group.getId(),
-                            pg.getPassword()));
+                                               pg.getPassword()));
                 } else {
                     Forum f = (Forum) group;
                     groups.add(new HeliosTopic(group.getId(),
-                            f.getPassword()));
+                                               f.getPassword()));
                 }
             }
         } catch (FormatException e) {
