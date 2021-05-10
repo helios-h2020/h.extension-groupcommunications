@@ -314,7 +314,7 @@ public class GroupCommunicationsApplicationImpl extends Application
 
 More information about dagger and dependency injection in Android can be found [here](https://developer.android.com/training/dependency-injection/dagger-android).
 
-In the following sections, we describe the two ways, you can configure HELIOS dependencies.
+In the following sections, we describe how you can configure HELIOS dependencies.
 
 ### How to configure HELIOS dependencies through HELIOS Nexus
 
@@ -353,29 +353,15 @@ heliosPassword=password
 
 To request Nexus username and password, contact with: `jordi.hernandezv@atos.net`
 
-### How to configure HELIOS dependencies through jitpack
-
-Instead of using HELIOS Nexus repository alternatively, you can use JitPack repository that builds 
-Git projects on demand and provides you with ready-to-use artifacts. First, you need to add the
-JitPack repository to your `build.gradle` file of the project.
-
-```
-allprojects {
-	repositories {
-		...
-		maven { url 'https://jitpack.io' }
-	}
-}
-```
-
-Then include the dependencies on the `build.gradle` file of your app/module:
+To include the h.extension-groupcommunications-utils to your project you need to add the
+following on the `build.gradle` file of your app/module:
 
 ```
 dependencies {
-        implementation 'com.github.helios-h2020:h.extension-groupcommunications:1.0.0'
-        implementation 'com.github.helios-h2020:h.extension-groupcommunications-db:1.0.0'
-        implementation 'com.github.helios-h2020:h.extension-groupcommunications-api:1.0.0'
-        implementation 'com.github.helios-h2020:h.extension-groupcommunications-utils:1.0.0'
+    implementation 'eu.h2020.helios_social.modules.groupcommunications:groupcommunications:1.0.11'
+    implementation 'eu.h2020.helios_social.modules.groupcommunications-db:groupcommunications-db:1.0.4'
+    implementation 'eu.h2020.helios_social.modules.groupcommunications-utils:groupcommunications-utils:1.0.8'
+    implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.11'	
 }
 ```
 
@@ -408,7 +394,7 @@ dependencies {
     implementation 'eu.h2020.helios_social.modules.groupcommunications:groupcommunications:1.0.10'
     implementation 'eu.h2020.helios_social.modules.groupcommunications-utils:groupcommunications-utils:1.0.7'
     implementation 'eu.h2020.helios_social.modules.groupcommunications-db:groupcommunications-db:1.0.3'
-    implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.10'	
+    implementation 'eu.h2020.helios_social.modules.groupcommunications-api:groupcommunications-api:1.0.11'	
     implementation 'eu.h2020.helios_social.modules.filetransfer:filetransfer:1.0.10'
     implementation 'eu.h2020.helios_social.core.storage:storage:1.0.0'
     implementation 'eu.h2020.helios_social.core.messaging:messaging:1.1.10'
