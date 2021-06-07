@@ -180,6 +180,20 @@ public class ConversationManagerImpl implements
     }
 
     @Override
+    public Group getContactGroup(String groupId)
+            throws DbException {
+        Transaction txn = db.startTransaction(true);
+        Group group;
+        try {
+            group = db.getGroup(txn, groupId);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return group;
+    }
+
+    @Override
     public ContactId getContactIdByGroupId(String groupId) throws DbException {
         Transaction txn = db.startTransaction(true);
         ContactId contactId;
@@ -231,27 +245,27 @@ public class ConversationManagerImpl implements
                     PeerInfo peerInfo = getPeerInfo(meta);
                     if (peerInfo.getAlias() != null && !peerInfo.getAlias().equals(""))
                         favourites.add(new Favourite(message.getId(),
-                                peerInfo.getAlias(), message.getMessageBody(), message.getMessageType(),
-                                message.getTimestamp()));
+                                                     peerInfo.getAlias(), message.getMessageBody(), message.getMessageType(),
+                                                     message.getTimestamp()));
                     else if (peerInfo.getFunnyName() != null && !peerInfo.getFunnyName().equals(""))
                         favourites.add(new Favourite(message.getId(),
-                                peerInfo.getFunnyName(), message.getMessageBody(), message.getMessageType(),
-                                message.getTimestamp()));
+                                                     peerInfo.getFunnyName(), message.getMessageBody(), message.getMessageType(),
+                                                     message.getTimestamp()));
                     else {
                         Contact contact =
                                 db.getContact(txn, db.getContactIdByGroupId(txn,
-                                        message.getGroupId()));
+                                                                            message.getGroupId()));
                         favourites.add(new Favourite(message.getId(),
-                                contact.getAlias(), message.getMessageBody(), message.getMessageType(),
-                                message.getTimestamp()));
+                                                     contact.getAlias(), message.getMessageBody(), message.getMessageType(),
+                                                     message.getTimestamp()));
                     }
                 } else {
                     Contact contact =
                             db.getContact(txn, db.getContactIdByGroupId(txn,
-                                    message.getGroupId()));
+                                                                        message.getGroupId()));
                     favourites.add(new Favourite(message.getId(),
-                            contact.getAlias(), message.getMessageBody(), message.getMessageType(),
-                            message.getTimestamp()));
+                                                 contact.getAlias(), message.getMessageBody(), message.getMessageType(),
+                                                 message.getTimestamp()));
                 }
 
             }
@@ -334,7 +348,7 @@ public class ConversationManagerImpl implements
     private PeerInfo getPeerInfo(BdfDictionary meta) throws FormatException {
         return new PeerInfo.Builder()
                 .peerId(new PeerId(meta.getOptionalString(PEER_ID),
-                        meta.getOptionalString(PEER_FAKE_ID)))
+                                   meta.getOptionalString(PEER_FAKE_ID)))
                 .alias(meta.getOptionalString(PEER_ALIAS))
                 .real_name(meta.getOptionalString(PEER_REAL_NAME))
                 .funny_name(meta.getOptionalString(PEER_FUNNY_NAME))
