@@ -23,21 +23,20 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Logger;
 
 import eu.h2020.helios_social.core.contextualegonetwork.ContextualEgoNetwork;
 import eu.h2020.helios_social.modules.contentawareprofiling.ContentAwareProfileManager;
 import eu.h2020.helios_social.modules.contentawareprofiling.Image;
-import eu.h2020.helios_social.modules.contentawareprofiling.data.CNNModelData;
-import eu.h2020.helios_social.modules.contentawareprofiling.data.DMLModelData;
-import eu.h2020.helios_social.modules.contentawareprofiling.miners.CoarseInterestProfileMiner;
-import eu.h2020.helios_social.modules.contentawareprofiling.miners.DMLProfileMiner;
-import eu.h2020.helios_social.modules.contentawareprofiling.miners.FineInterestProfileMiner;
 import eu.h2020.helios_social.modules.contentawareprofiling.model.ModelType;
-import eu.h2020.helios_social.modules.contentawareprofiling.profile.CoarseInterestsProfile;
 import eu.h2020.helios_social.modules.contentawareprofiling.profile.ContentAwareProfile;
-import eu.h2020.helios_social.modules.contentawareprofiling.profile.FineInterestsProfile;
+import eu.h2020.helios_social.modules.contentawareprofiling.profile.Interest;
+import eu.h2020.helios_social.modules.contentawareprofiling.profile.InterestProfile;
 import eu.h2020.helios_social.modules.groupcommunications.R;
+import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
+import eu.h2020.helios_social.modules.socialgraphmining.diffusion.PPRMiner;
+import mklab.JGNN.core.tensor.DenseTensor;
 
 import static java.util.logging.Logger.getLogger;
 
@@ -56,19 +55,23 @@ public class ProfilingWorker extends Worker {
 
     private ContextualEgoNetwork egoNetwork;
     private ContentAwareProfileManager profileManager;
-
+    private Class<? extends ContentAwareProfile> profileClass;
+    private PPRMiner pprMiner;
 
     public ProfilingWorker(@NonNull Context context, @NonNull WorkerParameters workerParams,
                            ContextualEgoNetwork egoNetwork,
-                           ContentAwareProfileManager profileManager) {
+                           ContentAwareProfileManager profileManager,
+                           SwitchableMiner switchableMiner) {
         super(context, workerParams);
         try {
             this.modelType = ModelType.valueOf(workerParams.getInputData().getString(MODEL));
         } catch (NullPointerException ex) {
             this.modelType = ModelType.COARSE;
         }
+        this.profileClass = ProfilingUtils.getProfileClass(modelType);
         this.egoNetwork = egoNetwork;
         this.profileManager = profileManager;
+        this.pprMiner = (PPRMiner) switchableMiner.getMiner(PPRMiner.class.getName() + "_" + profileClass.getName());
     }
 
     @NonNull
@@ -79,9 +82,6 @@ public class ProfilingWorker extends Worker {
         //execute profiling in batches of 500 pictures
         int it = images.size() / 500;
         LOG.info(modelType.name() + " Profiling is executed in batches of 500.");
-
-        Class<? extends ContentAwareProfile> profileClass =
-                ProfilingUtils.getProfileClass(modelType);
 
         if (images.size() == 0) return Result.success();
 
@@ -119,8 +119,21 @@ public class ProfilingWorker extends Worker {
         if (progress < 100) {
             nbuilder.setOngoing(true);
         } else {
-            LOG.info("Success: " + profileManager.getProfile(FineInterestsProfile.class).getInterests() + "");
+            List<Interest> interests = ((InterestProfile) profileManager.getProfile(profileClass)).getInterests();
+            LOG.info("Success: " + interests + "");
             nbuilder.setContentText("completed").setOngoing(false);
+
+            DenseTensor personalization = new DenseTensor(interests.size());
+            for (int i = 0; i < interests.size(); i++) {
+                personalization.put(i, interests.get(i).getWeight());
+            }
+            try {
+                pprMiner.updatePersonalization(personalization);
+                egoNetwork.save();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
         }
         Notification notification = nbuilder.build();
 
@@ -201,7 +214,7 @@ public class ProfilingWorker extends Worker {
                     }
 
                     Image image = new Image(photoUri, name, new Long(dateTaken), latlng[1],
-                            latlng[0]);
+                                            latlng[0]);
 
                     images.add(image);
                     stream.close();

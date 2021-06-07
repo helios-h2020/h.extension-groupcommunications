@@ -20,6 +20,8 @@ import eu.h2020.helios_social.modules.contentawareprofiling.data.DMLModelData;
 import eu.h2020.helios_social.modules.contentawareprofiling.miners.CoarseInterestProfileMiner;
 import eu.h2020.helios_social.modules.contentawareprofiling.miners.DMLProfileMiner;
 import eu.h2020.helios_social.modules.contentawareprofiling.miners.FineInterestProfileMiner;
+import eu.h2020.helios_social.modules.socialgraphmining.SocialGraphMiner;
+import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
 
 import static java.util.logging.Logger.getLogger;
 
@@ -33,12 +35,15 @@ public class CustomWorkerFactory extends WorkerFactory {
 
     private ContextualEgoNetwork egoNetwork;
     private ContentAwareProfileManager profileManager;
+    private SwitchableMiner switchableMiner;
 
     @Inject
     public CustomWorkerFactory(ContextualEgoNetwork egoNetwork,
-                               ContentAwareProfileManager profileManager) {
+                               ContentAwareProfileManager profileManager,
+                               SwitchableMiner switchableMiner) {
         this.egoNetwork = egoNetwork;
         this.profileManager = profileManager;
+        this.switchableMiner = switchableMiner;
     }
 
     @Nullable
@@ -56,15 +61,15 @@ public class CustomWorkerFactory extends WorkerFactory {
             if (workerClassName.equals(ProfilingWorker.class.getName())) {
                 Constructor<? extends Worker> constructor = Class.forName(workerClassName)
                         .asSubclass(Worker.class).getDeclaredConstructor(Context.class,
-                                WorkerParameters.class, ContextualEgoNetwork.class,
-                                ContentAwareProfileManager.class);
+                                                                         WorkerParameters.class, ContextualEgoNetwork.class,
+                                                                         ContentAwareProfileManager.class, SwitchableMiner.class);
                 worker = constructor.newInstance(appContext, workerParameters, egoNetwork,
-                        profileManager);
+                                                 profileManager, switchableMiner);
             } else {
                 //Default construction of other workers
                 Constructor<? extends Worker> constructor = Class.forName(workerClassName)
                         .asSubclass(Worker.class).getDeclaredConstructor(Context.class,
-                                WorkerParameters.class);
+                                                                         WorkerParameters.class);
                 worker = constructor.newInstance(appContext, workerParameters);
             }
             return worker;
