@@ -25,11 +25,13 @@ public class ContextModule {
     }
 
     @Provides
+    @Singleton
     ContextFactory providesContextFactory(ContextFactoryImpl contextFactory) {
         return contextFactory;
     }
 
     @Provides
+    @Singleton
     ContextInvitationFactory providesContextInvitationFactory(
             ContextInvitationFactoryImpl contextInvitationFactory) {
         return contextInvitationFactory;

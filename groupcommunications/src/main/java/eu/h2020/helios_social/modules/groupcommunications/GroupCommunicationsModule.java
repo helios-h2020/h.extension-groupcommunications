@@ -38,7 +38,8 @@ import eu.h2020.helios_social.modules.groupcommunications.profile.ProfileModule;
 import eu.h2020.helios_social.modules.groupcommunications.profile.sharing.ProfileRequestReceiver;
 import eu.h2020.helios_social.modules.groupcommunications.api.utils.InternalStorageConfig;
 import eu.h2020.helios_social.modules.socialgraphmining.GNN.GNNMiner;
-import eu.h2020.helios_social.modules.socialgraphmining.GNN.operations.Optimizer;
+import eu.h2020.helios_social.modules.socialgraphmining.diffusion.PPRMiner;
+import mklab.JGNN.core.tensor.DenseTensor;
 
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.CONTEXT_INVITE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.CONTEXT_INVITE_RESPONSE_PROTOCOL;
@@ -86,26 +87,26 @@ public class GroupCommunicationsModule {
             ContextInvitationReceiver contextInvitationReceiver,
             GroupInvitationReceiver groupInvitationReceiver,
             MembershipReceiver membershipReceiver,
-            ProfileRequestReceiver requestReceiver,
+            ProfileRequestReceiver profileRequestReceiver,
             QueryReceiver queryReceiver,
             QueryResponseReceiver queryResponseReceiver) {
         communicationManager.registerReceiver(CONNECTIONS_RECEIVER_ID,
-                connectionRequestReceiver);
+                                              connectionRequestReceiver);
         communicationManager.registerReceiver(PRIVATE_MESSAGE_PROTOCOL,
-                privateMessageReceiver);
+                                              privateMessageReceiver);
         communicationManager.registerReceiver(CONTEXT_INVITE_PROTOCOL,
-                contextInvitationReceiver);
+                                              contextInvitationReceiver);
         communicationManager.registerReceiver(CONTEXT_INVITE_RESPONSE_PROTOCOL,
-                contextInvitationReceiver);
+                                              contextInvitationReceiver);
         communicationManager
                 .registerReceiver(GROUP_INVITE_PROTOCOL,
-                        groupInvitationReceiver);
+                                  groupInvitationReceiver);
         communicationManager.registerReceiver(GROUP_INVITE_RESPONSE_PROTOCOL,
-                groupInvitationReceiver);
+                                              groupInvitationReceiver);
         communicationManager.registerReceiver(FORUM_MEMBERSHIP_PROTOCOL,
-                membershipReceiver);
-        communicationManager.registerReceiver(REQUEST_PROTOCOL, requestReceiver);
-        communicationManager.registerReceiver(RESPONSE_PROTOCOL, requestReceiver);
+                                              membershipReceiver);
+        communicationManager.registerReceiver(REQUEST_PROTOCOL, profileRequestReceiver);
+        communicationManager.registerReceiver(RESPONSE_PROTOCOL, profileRequestReceiver);
         communicationManager.registerReceiver(TEXT_QUERY_PROTOCOL, queryReceiver);
         communicationManager.registerReceiver(LOCATION_QUERY_PROTOCOL, queryReceiver);
         communicationManager.registerReceiver(QUERY_RESPONSE_PROTOCOL, queryResponseReceiver);
@@ -121,7 +122,7 @@ public class GroupCommunicationsModule {
         Utils.development = true;
         ContextualEgoNetwork egoNetwork = ContextualEgoNetwork.createOrLoad(
                 new LegacyStorage(config.getStorageDir().getPath().toString() +
-                        File.separator), "ego", "null");
+                                          File.separator), "ego", "null");
         GNNMiner.class.getDeclaredConstructors();
         egoNetwork.addListener(
                 new RecoveryListener());//automatic saving with minimal overhead
@@ -129,9 +130,7 @@ public class GroupCommunicationsModule {
         egoNetwork.addListener(new LoggingListener());//print events
         //Some needed non-sense
         Interaction.class.getDeclaredConstructors();
-        Optimizer.Adam.class.getDeclaredConstructors();
-        Optimizer.Regularization.class.getDeclaredConstructors();
-        Optimizer.class.getDeclaredConstructors();
+        DenseTensor.class.getDeclaredConstructors();
 
         egoNetwork.setCurrent(egoNetwork.getOrCreateContext("All%All"));
         egoNetwork.save();

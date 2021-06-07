@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import eu.h2020.helios_social.core.context.ext.LocationContext;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.AbstractMessage;
 
-public class LocationContextProxy extends LocationContext  implements AbstractMessage {
+public class LocationContextProxy extends LocationContext implements AbstractMessage {
     private Integer color;
 
     public LocationContextProxy(@NotNull String id, @NotNull String name, @NotNull Integer color,

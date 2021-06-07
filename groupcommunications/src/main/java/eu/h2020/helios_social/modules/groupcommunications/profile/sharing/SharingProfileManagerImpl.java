@@ -1,11 +1,14 @@
 package eu.h2020.helios_social.modules.groupcommunications.profile.sharing;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 
 import javax.inject.Inject;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.messaging.AbstractMessage;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.IoExecutor;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ProfileRequestReceivedEvent;
@@ -26,13 +29,16 @@ public class SharingProfileManagerImpl implements SharingProfileManager, EventLi
             getLogger(SharingProfileManagerImpl.class.getName());
 
     private final CommunicationManager communicationManager;
+    private final Executor ioExecutor;
     private final ProfileManager profileManager;
 
     @Inject
     public SharingProfileManagerImpl(
             CommunicationManager communicationManager,
+            @IoExecutor Executor ioExecutor,
             ProfileManager profileManager) {
         this.communicationManager = communicationManager;
+        this.ioExecutor = ioExecutor;
         this.profileManager = profileManager;
     }
 
@@ -40,29 +46,14 @@ public class SharingProfileManagerImpl implements SharingProfileManager, EventLi
     @Override
     public void sendProfileRequest(ContactId contactId, String contextId) {
         Request request = new Request(contextId, Request.Type.PROFILE);
-        try {
-            communicationManager.sendDirectMessage(REQUEST_PROTOCOL, contactId, request);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
-            e.printStackTrace();
-        }
+        sendMessage(REQUEST_PROTOCOL, contactId, request);
+
     }
 
     @Override
     public void sendProfileResponse(ContactId contactId, String contextId) throws DbException {
         Profile profile = profileManager.getProfile(contextId);
-        try {
-            communicationManager.sendDirectMessage(RESPONSE_PROTOCOL, contactId, profile);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
-            e.printStackTrace();
-        }
+        sendMessage(RESPONSE_PROTOCOL, contactId, profile);
     }
 
     @Override
@@ -78,5 +69,15 @@ public class SharingProfileManagerImpl implements SharingProfileManager, EventLi
                 ex.printStackTrace();
             }
         }
+    }
+
+    private void sendMessage(String protocol, ContactId contactId, AbstractMessage message) {
+        ioExecutor.execute(() -> {
+            communicationManager.sendDirectMessage(
+                    protocol,
+                    contactId,
+                    message
+            );
+        });
     }
 }

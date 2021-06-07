@@ -5,11 +5,15 @@ import com.google.gson.Gson;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
+import eu.h2020.helios_social.modules.groupcommunications.api.messaging.AbstractMessage;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.IoExecutor;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationAutoResponseEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
@@ -36,13 +40,16 @@ public class SharingContextManagerImpl implements SharingContextManager,
 
     private final ContextManager contextManager;
     private final CommunicationManager communicationManager;
+    private final Executor ioExecutor;
     private final DatabaseComponent db;
 
     @Inject
     public SharingContextManagerImpl(DatabaseComponent db,
+                                     @IoExecutor Executor ioExecutor,
                                      ContextManager contextManager,
                                      CommunicationManager communicationManager) {
         this.db = db;
+        this.ioExecutor = ioExecutor;
         this.contextManager = contextManager;
         this.communicationManager = communicationManager;
     }
@@ -58,16 +65,7 @@ public class SharingContextManagerImpl implements SharingContextManager,
                 contextInvitation.getJson(),
                 contextInvitation.getTimestamp()
         );
-        try {
-            communicationManager.sendDirectMessage(CONTEXT_INVITE_PROTOCOL,
-                    contextInvitation.getContactId(), contextInfo);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
-            e.printStackTrace();
-        }
+        sendMessage(CONTEXT_INVITE_PROTOCOL, contextInvitation.getContactId(), contextInfo);
     }
 
     @Override
@@ -89,13 +87,13 @@ public class SharingContextManagerImpl implements SharingContextManager,
                         .equals(ContextType.GENERAL)) {
                     GeneralContextProxy newContext =
                             new Gson().fromJson(contextInvitation.getJson(),
-                                    GeneralContextProxy.class);
+                                                GeneralContextProxy.class);
                     contextManager.addContext(txn, newContext);
                 } else if (contextInvitation.getContextType()
                         .equals(ContextType.LOCATION)) {
                     LocationContextProxy newContext =
                             new Gson().fromJson(contextInvitation.getJson(),
-                                    LocationContextProxy.class);
+                                                LocationContextProxy.class);
                     contextManager.addContext(txn, newContext);
                 }
             }
@@ -103,25 +101,17 @@ public class SharingContextManagerImpl implements SharingContextManager,
             for (ContextInvitation contextInvitation : filteredContextInvitations) {
                 Group newContextContactGroup =
                         new Group(UUID.randomUUID().toString(),
-                                contextInvitation.getContextId(),
-                                GroupType.PrivateConversation);
+                                  contextInvitation.getContextId(),
+                                  GroupType.PrivateConversation);
                 db.addContactGroup(txn, newContextContactGroup,
-                        contextInvitation.getContactId());
+                                   contextInvitation.getContactId());
                 ConnectionInfo connectionInfo = new ConnectionInfo()
                         .setConversationInfo(newContextContactGroup.getId(),
-                                newContextContactGroup.getContextId());
-                try {
-                    communicationManager
-                            .sendDirectMessage(CONTEXT_INVITE_RESPONSE_PROTOCOL,
-                                    contextInvitation.getContactId(),
-                                    connectionInfo);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (ExecutionException e) {
-                    e.printStackTrace();
-                } catch (TimeoutException e) {
-                    e.printStackTrace();
-                }
+                                             newContextContactGroup.getContextId());
+
+                sendMessage(CONTEXT_INVITE_RESPONSE_PROTOCOL,
+                            contextInvitation.getContactId(),
+                            connectionInfo);
             }
             db.removePendingContext(txn, pendingContextId);
             db.commitTransaction(txn);
@@ -137,25 +127,18 @@ public class SharingContextManagerImpl implements SharingContextManager,
         try {
             Group newContextContactGroup =
                     new Group(UUID.randomUUID().toString(),
-                            contextInvitation.getContextId(),
-                            GroupType.PrivateConversation);
+                              contextInvitation.getContextId(),
+                              GroupType.PrivateConversation);
             db.addContactGroup(txn, newContextContactGroup,
-                    contextInvitation.getContactId());
+                               contextInvitation.getContactId());
             ConnectionInfo connectionInfo = new ConnectionInfo()
                     .setConversationInfo(newContextContactGroup.getId(),
-                            newContextContactGroup.getContextId());
-            try {
-                communicationManager
-                        .sendDirectMessage(CONTEXT_INVITE_RESPONSE_PROTOCOL,
-                                contextInvitation.getContactId(),
-                                connectionInfo);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            } catch (TimeoutException e) {
-                e.printStackTrace();
-            }
+                                         newContextContactGroup.getContextId());
+
+            sendMessage(CONTEXT_INVITE_RESPONSE_PROTOCOL,
+                        contextInvitation.getContactId(),
+                        connectionInfo);
+
             db.commitTransaction(txn);
         } finally {
             db.endTransaction(txn);
@@ -166,20 +149,12 @@ public class SharingContextManagerImpl implements SharingContextManager,
     public void rejectContextInvitation(ContextInvitation contextInvitation)
             throws DbException {
         contextManager.removePendingContext(contextInvitation.getContextId());
-        try {
-            communicationManager
-                    .sendDirectMessage(CONTEXT_INVITE_RESPONSE_PROTOCOL,
-                            contextInvitation.getContactId(),
-                            new ConnectionInfo()
-                                    .setConversationInfo(null,
-                                            contextInvitation.getContextId()));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
-            e.printStackTrace();
-        }
+        sendMessage(CONTEXT_INVITE_RESPONSE_PROTOCOL,
+                    contextInvitation.getContactId(),
+                    new ConnectionInfo().setConversationInfo(null,
+                                                             contextInvitation.getContextId())
+        );
+
     }
 
     @Override
@@ -187,10 +162,20 @@ public class SharingContextManagerImpl implements SharingContextManager,
         if (e instanceof ContextInvitationAutoResponseEvent) {
             try {
                 acceptContextInvitation(((ContextInvitationAutoResponseEvent) e)
-                        .getContextInvitation());
+                                                .getContextInvitation());
             } catch (DbException ex) {
                 ex.printStackTrace();
             }
         }
+    }
+
+    private void sendMessage(String protocol, ContactId contactId, AbstractMessage message) {
+        ioExecutor.execute(() -> {
+            communicationManager.sendDirectMessage(
+                    protocol,
+                    contactId,
+                    message
+            );
+        });
     }
 }

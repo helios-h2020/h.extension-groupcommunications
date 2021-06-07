@@ -5,17 +5,12 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
 
-import com.jakewharton.threetenabp.AndroidThreeTen;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -29,11 +24,9 @@ import eu.h2020.helios_social.core.messaging.HeliosMessagingException;
 import eu.h2020.helios_social.core.messaging.HeliosTopic;
 import eu.h2020.helios_social.core.messaging.ReliableHeliosMessagingNodejsLibp2pImpl;
 import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosEgoTag;
-import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosMessagingNodejsLibp2p;
 import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosMessagingReceiver;
 import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosNetworkAddress;
 import eu.h2020.helios_social.modules.groupcommunications.api.CommunicationManager;
-import eu.h2020.helios_social.modules.groupcommunications.api.contact.Contact;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
@@ -51,7 +44,6 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.identity.Identit
 import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.LifecycleManager;
 import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.Service;
 import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.ServiceException;
-import kotlin.Unit;
 
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.APP_TAG;
 import static java.util.logging.Logger.getLogger;
@@ -60,7 +52,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
         LifecycleManager.OpenDatabaseHook {
 
     private static final Logger LOG =
-            getLogger(CommunicationManagerImpl.class.getName());
+            getLogger(ReliableCommunicationManagerImpl.class.getName());
 
     private ReliableHeliosMessagingNodejsLibp2pImpl heliosMessaging;
     private Context appContext;
@@ -104,6 +96,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
         try {
             heliosMessaging.connect(connectionInfo, identityInfo);
         } catch (HeliosMessagingException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
             e.printStackTrace();
         }
 
@@ -111,6 +104,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
             try {
                 identityManager.setNetworkId(heliosMessaging.getPeerId());
             } catch (DbException e) {
+                LOG.log(Level.SEVERE, e.getMessage(), e);
                 e.printStackTrace();
             }
         }
@@ -131,8 +125,9 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
                 }
             });
             //as soon as she has subscribe send a message to notify that she has arrived
-            heliosMessaging.publish(new HeliosTopic("helios-talk-app-topic", ""), new HeliosMessage("join"));
+            heliosMessaging.publish(new HeliosTopic("helios-talk-app-topic", ""), new HeliosMessage("{\"message\":\"join\"}"));
         } catch (HeliosMessagingException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
             e.printStackTrace();
         }
 
@@ -142,6 +137,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
             try {
                 heliosMessaging.subscribe(groupTopic, privateGroupMessageListener);
             } catch (HeliosMessagingException e) {
+                LOG.log(Level.SEVERE, e.getMessage(), e);
                 e.printStackTrace();
             }
         }
@@ -159,6 +155,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
         try {
             heliosMessaging.disconnect(connectionInfo, identityInfo);
         } catch (HeliosMessagingException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
             e.printStackTrace();
         }
         heliosMessaging.stop();
@@ -201,34 +198,43 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
 
     @Override
     public void sendDirectMessage(String protocolId, ContactId contactId,
-                                  AbstractMessage message) throws InterruptedException, ExecutionException, TimeoutException {
+                                  AbstractMessage message) {
         HeliosNetworkAddress heliosNetworkAddress = new HeliosNetworkAddress();
         heliosNetworkAddress.setNetworkId(contactId.getId());
 
         LOG.info(
                 "send direct message!: " + heliosNetworkAddress.getNetworkId());
-        heliosMessaging.sendTo(
-                heliosNetworkAddress,
-                protocolId,
-                message.toJson().getBytes()
-        );
+        try {
+            heliosMessaging.sendTo(
+                    heliosNetworkAddress,
+                    protocolId,
+                    message.toJson().getBytes()
+            );
+        } catch (RuntimeException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void sendDirectMessage(String protocolId, PeerId peerId,
-                                  AbstractMessage message)
-            throws InterruptedException, ExecutionException, TimeoutException {
+                                  AbstractMessage message) {
         HeliosNetworkAddress heliosNetworkAddress = new HeliosNetworkAddress();
         heliosNetworkAddress.setNetworkId(peerId.getId());
 
         LOG.info(
                 "send direct message to peer!: " +
                         heliosNetworkAddress.getNetworkId());
-        heliosMessaging.sendTo(
-                heliosNetworkAddress,
-                protocolId,
-                message.toJson().getBytes()
-        );
+        try {
+            heliosMessaging.sendTo(
+                    heliosNetworkAddress,
+                    protocolId,
+                    message.toJson().getBytes()
+            );
+        } catch (RuntimeException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -240,6 +246,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
                     new HeliosMessage(message.toJson())
             );
         } catch (HeliosMessagingException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
             e.printStackTrace();
         }
     }
@@ -276,6 +283,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
             heliosMessaging.subscribe(new HeliosTopic(groupId, password),
                                       privateGroupMessageListener);
         } catch (HeliosMessagingException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
             e.printStackTrace();
         }
     }
@@ -285,6 +293,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
         try {
             heliosMessaging.unsubscribe(new HeliosTopic(groupId, password));
         } catch (HeliosMessagingException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
             e.printStackTrace();
         }
     }
@@ -313,6 +322,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
                 }
             }
         } catch (FormatException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
             e.printStackTrace();
         }
     }
@@ -336,10 +346,16 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
                     heliosMessaging.sendOnlineStatusTo(addresses);
 
                 } catch (DbException e) {
+                    LOG.log(Level.SEVERE, e.getMessage(), e);
                     e.printStackTrace();
                 }
             }
         }, delay);
+    }
+
+    @Override
+    public boolean isConnected() {
+        return heliosMessaging.isConnected();
     }
 
 }

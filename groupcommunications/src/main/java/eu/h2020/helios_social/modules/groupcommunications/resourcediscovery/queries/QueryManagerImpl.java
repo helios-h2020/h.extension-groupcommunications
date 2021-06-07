@@ -63,20 +63,10 @@ public class QueryManagerImpl implements QueryManager, EventListener {
     @Override
     public void forwardQuery(PeerId peerId, Query query) {
         ioExecutor.execute(() -> {
-            try {
-                if (query instanceof TextQuery) {
-                    communicationManager.sendDirectMessage(TEXT_QUERY_PROTOCOL, peerId, query);
-                } else {
-                    communicationManager.sendDirectMessage(LOCATION_QUERY_PROTOCOL, peerId, query);
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            } catch (TimeoutException e) {
-                e.printStackTrace();
-            } catch (RuntimeException e) {
-                e.printStackTrace();
+            if (query instanceof TextQuery) {
+                communicationManager.sendDirectMessage(TEXT_QUERY_PROTOCOL, peerId, query);
+            } else {
+                communicationManager.sendDirectMessage(LOCATION_QUERY_PROTOCOL, peerId, query);
             }
         });
     }
@@ -85,17 +75,7 @@ public class QueryManagerImpl implements QueryManager, EventListener {
     public void sendQueryResponse(PeerId peerId, QueryResponse<Queryable> queryResponse) {
         LOG.info("QUERYRESPONSE: " + queryResponse.getEntities().entrySet().iterator().next().getValue().getQueryableType());
         ioExecutor.execute(() -> {
-            try {
-                communicationManager.sendDirectMessage(QUERY_RESPONSE_PROTOCOL, peerId, queryResponse);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            } catch (TimeoutException e) {
-                e.printStackTrace();
-            } catch (RuntimeException e) {
-                e.printStackTrace();
-            }
+            communicationManager.sendDirectMessage(QUERY_RESPONSE_PROTOCOL, peerId, queryResponse);
         });
     }
 

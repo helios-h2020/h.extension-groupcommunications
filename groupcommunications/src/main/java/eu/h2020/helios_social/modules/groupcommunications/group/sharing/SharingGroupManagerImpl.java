@@ -10,6 +10,8 @@ import java.util.logging.Logger;
 
 import javax.inject.Inject;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
+import eu.h2020.helios_social.modules.groupcommunications.api.messaging.AbstractMessage;
 import eu.h2020.helios_social.modules.groupcommunications.api.utils.Pair;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
@@ -82,17 +84,10 @@ public class SharingGroupManagerImpl implements SharingGroupManager,
                 groupInvitation.getJson(),
                 groupInvitation.getTimestamp()
         );
-        try {
-            communicationManager.sendDirectMessage(GROUP_INVITE_PROTOCOL,
-                                                   groupInvitation.getContactId(), groupInfo);
-            groupManager.addGroupInvitation(groupInvitation);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
-            e.printStackTrace();
-        }
+        groupManager.addGroupInvitation(groupInvitation);
+        sendMessage(GROUP_INVITE_PROTOCOL,
+                    groupInvitation.getContactId(),
+                    groupInfo);
     }
 
     @Override
@@ -108,27 +103,20 @@ public class SharingGroupManagerImpl implements SharingGroupManager,
                                   PrivateGroup.class);
                 groupManager.addGroup(txn, privateGroup);
 
-                try {
-                    communicationManager
-                            .sendDirectMessage(GROUP_INVITE_RESPONSE_PROTOCOL,
-                                               groupInvitation.getContactId(),
-                                               new ResponseInfo(
-                                                       ResponseInfo.Response.ACCEPT,
-                                                       groupInvitation.getGroupId(),
-                                                       groupInvitation
-                                                               .getGroupInvitationType()));
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (ExecutionException e) {
-                    e.printStackTrace();
-                } catch (TimeoutException e) {
-                    e.printStackTrace();
-                }
                 db.removeGroupInvitation(txn, groupInvitation.getContactId(),
                                          groupInvitation.getGroupId());
+
                 communicationManager
                         .subscribe(privateGroup.getId(),
                                    privateGroup.getPassword());
+
+                sendMessage(GROUP_INVITE_RESPONSE_PROTOCOL,
+                            groupInvitation.getContactId(),
+                            new ResponseInfo(
+                                    ResponseInfo.Response.ACCEPT,
+                                    groupInvitation.getGroupId(),
+                                    groupInvitation
+                                            .getGroupInvitationType()));
             } else if (groupInvitation.getGroupInvitationType().getValue() >= 1) {
                 Forum forum;
                 if (groupInvitation.getGroupInvitationType().equals(GroupInvitationType.LocationForum))
@@ -141,28 +129,19 @@ public class SharingGroupManagerImpl implements SharingGroupManager,
                 LOG.info("Accepting Forum Invite");
                 groupManager.addGroup(txn, forum);
 
-                try {
-                    communicationManager
-                            .sendDirectMessage(GROUP_INVITE_RESPONSE_PROTOCOL,
-                                               groupInvitation.getContactId(),
-                                               new ResponseInfo(
-                                                       ResponseInfo.Response.ACCEPT,
-                                                       groupInvitation.getGroupId(),
-                                                       groupInvitation
-                                                               .getGroupInvitationType()));
-
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (ExecutionException e) {
-                    e.printStackTrace();
-                } catch (TimeoutException e) {
-                    e.printStackTrace();
-                }
                 db.removeGroupInvitation(txn, groupInvitation.getContactId(),
                                          groupInvitation.getGroupId());
                 communicationManager.subscribe(
                         forum.getId(),
                         forum.getPassword());
+
+                sendMessage(GROUP_INVITE_RESPONSE_PROTOCOL,
+                            groupInvitation.getContactId(),
+                            new ResponseInfo(
+                                    ResponseInfo.Response.ACCEPT,
+                                    groupInvitation.getGroupId(),
+                                    groupInvitation.getGroupInvitationType())
+                );
                 notifyModeratorsForJoiningForum(txn, forum);
             }
             db.commitTransaction(txn);
@@ -189,22 +168,14 @@ public class SharingGroupManagerImpl implements SharingGroupManager,
     @Override
     public void rejectGroupInvitation(GroupInvitation groupInvitation)
             throws DbException {
-        try {
-            communicationManager
-                    .sendDirectMessage(GROUP_INVITE_RESPONSE_PROTOCOL,
-                                       groupInvitation.getContactId(), new ResponseInfo(
-                                    ResponseInfo.Response.REJECT,
-                                    groupInvitation.getGroupId(),
-                                    groupInvitation.getGroupInvitationType()));
-            groupManager.removeGroupInvitation(groupInvitation.getContactId(),
-                                               groupInvitation.getGroupId());
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
-            e.printStackTrace();
-        }
+        groupManager.removeGroupInvitation(groupInvitation.getContactId(),
+                                           groupInvitation.getGroupId());
+
+        sendMessage(GROUP_INVITE_RESPONSE_PROTOCOL,
+                    groupInvitation.getContactId(), new ResponseInfo(
+                        ResponseInfo.Response.REJECT,
+                        groupInvitation.getGroupId(),
+                        groupInvitation.getGroupInvitationType()));
     }
 
     @Override
@@ -265,18 +236,22 @@ public class SharingGroupManagerImpl implements SharingGroupManager,
     private void notify(PeerId peerId, MembershipInfo membershipInfo) {
         LOG.info("Notifying moderator for joining forum! ");
         ioExecutor.execute(() -> {
-            try {
-                communicationManager.sendDirectMessage(
-                        FORUM_MEMBERSHIP_PROTOCOL,
-                        peerId,
-                        membershipInfo);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            } catch (TimeoutException e) {
-                e.printStackTrace();
-            }
+
+            communicationManager.sendDirectMessage(
+                    FORUM_MEMBERSHIP_PROTOCOL,
+                    peerId,
+                    membershipInfo);
+
+        });
+    }
+
+    private void sendMessage(String protocol, ContactId contactId, AbstractMessage message) {
+        ioExecutor.execute(() -> {
+            communicationManager.sendDirectMessage(
+                    protocol,
+                    contactId,
+                    message
+            );
         });
     }
 }

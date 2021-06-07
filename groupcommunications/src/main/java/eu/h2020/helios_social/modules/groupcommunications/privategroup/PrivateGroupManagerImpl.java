@@ -36,7 +36,6 @@ public class PrivateGroupManagerImpl
         implements PrivateGroupManager<Transaction> {
 
     private final DatabaseComponent db;
-    //private final IdentityManager identityManager;
     private final ContactManager contactManager;
     private final MessageTracker messageTracker;
     private final Encoder encoder;
@@ -44,12 +43,11 @@ public class PrivateGroupManagerImpl
 
     @Inject
     public PrivateGroupManagerImpl(DatabaseComponent db,
-                                   ContactManager contactManager, //IdentityManager identityManager,
+                                   ContactManager contactManager,
                                    MessageTracker messageTracker, Encoder encoder,
                                    Parser parser) {
         this.db = db;
         this.contactManager = contactManager;
-        //this.identityManager = identityManager;
         this.messageTracker = messageTracker;
         this.encoder = encoder;
         this.parser = parser;

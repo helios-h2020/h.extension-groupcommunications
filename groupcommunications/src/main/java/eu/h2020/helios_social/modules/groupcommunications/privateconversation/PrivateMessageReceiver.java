@@ -41,6 +41,7 @@ import eu.h2020.helios_social.modules.groupcommunications.api.mining.MiningManag
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageSentEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PrivateMessageReceivedEvent;
 import eu.h2020.helios_social.modules.socialgraphmining.SocialGraphMiner;
+import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
 
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.PRIVATE_MESSAGE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.ATTACHMENTS;
@@ -53,7 +54,7 @@ public class PrivateMessageReceiver
 
     private final DatabaseComponent db;
     private final ContextualEgoNetwork egoNetwork;
-    private final MiningManager miningManager;
+    private final SwitchableMiner switchableMiner;
     private final MessageTracker messageTracker;
     private final EventBus eventBus;
     private final Encoder encoder;
@@ -61,14 +62,14 @@ public class PrivateMessageReceiver
 
     @Inject
     public PrivateMessageReceiver(DatabaseComponent db,
-                                  ContextualEgoNetwork egoNetwork, MiningManager miningManager,
+                                  ContextualEgoNetwork egoNetwork, SwitchableMiner switchableMiner,
                                   MessageTracker messageTracker, Encoder encoder,
                                   AttachmentManager attachmentManager,
                                   EventBus eventBus) {
 
         this.db = db;
         this.egoNetwork = egoNetwork;
-        this.miningManager = miningManager;
+        this.switchableMiner = switchableMiner;
         this.messageTracker = messageTracker;
         this.encoder = encoder;
         this.attachmentManager = attachmentManager;
@@ -137,6 +138,7 @@ public class PrivateMessageReceiver
                         false,
                         privateMessage.getMessageType(),
                         privateMessage.getMessageBody() != null);
+
                 messageTracker.trackIncomingMessage(txn, privateMessage);
 
                 LOG.info("received ack preferences: " + privateMessage.getPreferences());
@@ -167,8 +169,8 @@ public class PrivateMessageReceiver
                 .getInteractions();
         Interaction interaction = interactions.get(interactions.size() - 1);
         LOG.info("ack preferences: " + ack.getPreferences());
-        miningManager.getSocialGraphMiner().newInteraction(interaction, ack.getPreferences(),
-                                                           SocialGraphMiner.InteractionType.RECEIVE_REPLY);
+        switchableMiner.newInteraction(interaction, ack.getPreferences(),
+                                       SocialGraphMiner.InteractionType.RECEIVE_REPLY);
         messageTracker.setDeliveredFlag(fields[2]);
         eventBus.broadcast(new MessageSentEvent(fields[2]));
 
@@ -178,7 +180,6 @@ public class PrivateMessageReceiver
         Group group = db.getGroup(txn, privateMessage.getGroupId());
         DBContext context = db.getContext(txn, group.getContextId());
 
-        LOG.info("IS contextual ego network null? " + egoNetwork);
         Interaction interaction = egoNetwork
                 .getOrCreateContext(context.getName() + "%" + context.getId())
                 .getOrAddEdge(
@@ -186,14 +187,12 @@ public class PrivateMessageReceiver
                         egoNetwork.getOrCreateNode(contactId.getId(), null)
                 ).addDetectedInteraction(null);
 
-        miningManager.getSocialGraphMiner().newInteraction(
+        switchableMiner.newInteraction(
                 interaction,
                 privateMessage.getPreferences(),
                 SocialGraphMiner.InteractionType.RECEIVE
         );
-        String ack_preferences = miningManager
-                .getSocialGraphMiner()
-                .getModelParameters(interaction);
+        String ack_preferences = switchableMiner.getModelParameters(interaction);
         LOG.info("send ack_preferences: " + ack_preferences);
         Message ack = new Message(ack_preferences, context.getName() + "%" + context.getId() + "%" + privateMessage.getId());
         eventBus.broadcast(new AckMessageEvent(contactId, ack));
