@@ -19,3 +19,5 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+-keep class eu.h2020.helios_social.modules.socialgraphmining.** { *; }
+-keepclassmembers class eu.h2020.helios_social.modules.socialgraphmining.** { *; }
