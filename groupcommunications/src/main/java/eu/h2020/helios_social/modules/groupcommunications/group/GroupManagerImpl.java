@@ -127,6 +127,19 @@ public class GroupManagerImpl implements GroupManager<Transaction> {
     }
 
     @Override
+    public GroupType getGroupType(String groupId) throws DbException {
+        Transaction txn = db.startTransaction(true);
+        GroupType groupType;
+        try {
+            groupType = db.getGroup(txn, groupId).getGroupType();
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return groupType;
+    }
+
+    @Override
     public boolean groupAlreadyExists(String groupId) throws DbException {
         Transaction txn = db.startTransaction(true);
         boolean exists;
