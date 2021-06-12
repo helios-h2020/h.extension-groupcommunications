@@ -97,7 +97,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
             db.addMessage(txn, privateMessage, MessageState.PENDING, contextId,
                           false);
             if (privateMessage.getMessageType().equals(Message.Type.IMAGES) ||
-                    privateMessage.getMessageType().equals(Message.Type.ATTACHMENT)) {
+                    privateMessage.getMessageType().equals(Message.Type.FILE_ATTACHMENT)) {
                 messageHeader.setAttachments(privateMessage.getAttachments());
                 try {
                     attachmentManager.storeOutgoingAttachmentsToExternalStorage(privateMessage.getAttachments());
@@ -154,7 +154,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
                 addMessageMetadata(txn, groupMessage.getId(),
                                    groupMessage.getPeerInfo());
                 if (groupMessage.getMessageType().equals(Message.Type.IMAGES) ||
-                        groupMessage.getMessageType().equals(Message.Type.ATTACHMENT)) {
+                        groupMessage.getMessageType().equals(Message.Type.FILE_ATTACHMENT)) {
                     messageHeader.setAttachments(groupMessage.getAttachments());
                     try {
                         attachmentManager.storeOutgoingAttachmentsToExternalStorage(groupMessage.getAttachments());
@@ -175,9 +175,10 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
                     addMessageMetadata(txn, groupMessage.getId(),
                                        groupMessage.getPeerInfo());
                     if (groupMessage.getMessageType().equals(Message.Type.IMAGES) ||
-                            groupMessage.getMessageType().equals(Message.Type.ATTACHMENT)) {
+                            groupMessage.getMessageType().equals(Message.Type.FILE_ATTACHMENT)) {
                         messageHeader.setAttachments(groupMessage.getAttachments());
                         try {
+                            attachmentManager.storeOutgoingAttachmentsToExternalStorage(groupMessage.getAttachments());
                             addAttachmentMetadata(txn, groupMessage.getId(), groupMessage.getAttachments());
                         } catch (FormatException e) {
                             e.printStackTrace();
@@ -213,7 +214,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
         BdfDictionary meta = new BdfDictionary();
         BdfList attachmentList = new BdfList();
         for (Attachment a : attachments) {
-            attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType()));
+            attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType(), a.getAttachmentName()));
         }
         meta.put(ATTACHMENTS, attachmentList);
         db.mergeMessageMetadata(txn, messageId, encoder.encodeMetadata(meta));
@@ -223,13 +224,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
                                        List<Attachment> attachments) throws DbException {
         Transaction txn = db.startTransaction(false);
         try {
-            BdfDictionary meta = new BdfDictionary();
-            BdfList attachmentList = new BdfList();
-            for (Attachment a : attachments) {
-                attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType()));
-            }
-            meta.put(ATTACHMENTS, attachmentList);
-            db.mergeMessageMetadata(txn, messageId, encoder.encodeMetadata(meta));
+            addAttachmentMetadata(txn, messageId, attachments);
             db.commitTransaction(txn);
         } catch (FormatException e) {
             e.printStackTrace();
@@ -254,7 +249,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
 
     private void sendMessage(Group group, Message groupMessage) {
         ioExecutor.execute(() -> {
-            if (groupMessage.getMessageType().equals(Message.Type.IMAGES) || groupMessage.getMessageType().equals(Message.Type.ATTACHMENT)) {
+            if (groupMessage.getMessageType().equals(Message.Type.IMAGES) || groupMessage.getMessageType().equals(Message.Type.FILE_ATTACHMENT)) {
                 attachmentManager.uploadAttachments(groupMessage.getAttachments());
                 try {
                     addAttachmentMetadata(groupMessage.getId(), groupMessage.getAttachments());
@@ -284,7 +279,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
 
     private void sendMessage(String protocol, ContactId contactId, Message message) {
         ioExecutor.execute(() -> {
-            if (message.getMessageType().equals(Message.Type.IMAGES) || message.getMessageType().equals(Message.Type.ATTACHMENT)) {
+            if (message.getMessageType().equals(Message.Type.IMAGES) || message.getMessageType().equals(Message.Type.FILE_ATTACHMENT)) {
                 attachmentManager.uploadAttachments(message.getAttachments());
                 LOG.info("Attachments: " + message.getAttachments());
                 try {
