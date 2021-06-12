@@ -102,7 +102,7 @@ public class GroupMessageListener implements HeliosMessageListener {
 
                 db.commitTransaction(txn);
 
-                if (messageHeader.getMessageType() == Message.Type.IMAGES) {
+                if (messageHeader.getMessageType() == Message.Type.IMAGES || messageHeader.getMessageType() == Message.Type.FILE_ATTACHMENT) {
                     attachmentManager.downloadAttachments(groupMessage.getId(), groupMessage.getAttachments());
                     addAttachmentMetadata(groupMessage.getId(), groupMessage.getAttachments());
                 } else {
@@ -126,7 +126,7 @@ public class GroupMessageListener implements HeliosMessageListener {
             BdfDictionary meta = new BdfDictionary();
             BdfList attachmentList = new BdfList();
             for (Attachment a : attachments) {
-                attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType()));
+                attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType(), a.getAttachmentName()));
             }
             meta.put(ATTACHMENTS, attachmentList);
             db.mergeMessageMetadata(txn, messageId, encoder.encodeMetadata(meta));
