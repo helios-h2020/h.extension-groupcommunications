@@ -146,7 +146,7 @@ public class PrivateMessageReceiver
                     ackMessage(txn, contactId, privateMessage);
                 db.commitTransaction(txn);
 
-                if (messageHeader.getMessageType() == Message.Type.IMAGES) {
+                if (messageHeader.getMessageType() == Message.Type.IMAGES || messageHeader.getMessageType() == Message.Type.FILE_ATTACHMENT) {
                     attachmentManager.downloadAttachments(privateMessage.getId(), privateMessage.getAttachments());
                     addAttachmentMetadata(privateMessage.getId(), privateMessage.getAttachments());
                 } else {
@@ -205,7 +205,7 @@ public class PrivateMessageReceiver
             BdfDictionary meta = new BdfDictionary();
             BdfList attachmentList = new BdfList();
             for (Attachment a : attachments) {
-                attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType()));
+                attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType(), a.getAttachmentName()));
             }
             meta.put(ATTACHMENTS, attachmentList);
             db.mergeMessageMetadata(txn, messageId, encoder.encodeMetadata(meta));
