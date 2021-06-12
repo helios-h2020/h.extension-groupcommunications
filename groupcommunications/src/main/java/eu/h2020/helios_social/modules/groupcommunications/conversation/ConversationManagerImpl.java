@@ -154,7 +154,7 @@ public class ConversationManagerImpl implements
             BdfList attachmentList = meta.getList(ATTACHMENTS, new BdfList());
             for (int i = 0; i < attachmentList.size(); i++) {
                 BdfList a = attachmentList.getList(i);
-                attachments.add(new Attachment(a.getOptionalString(0), a.getOptionalString(1), a.getOptionalString(2)));
+                attachments.add(new Attachment(a.getOptionalString(0), a.getOptionalString(1), a.getOptionalString(2), a.getString(3, null)));
             }
             db.commitTransaction(txn);
         } catch (FormatException e) {
