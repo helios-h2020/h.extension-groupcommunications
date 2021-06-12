@@ -28,10 +28,10 @@ public class PrivateMessageFactoryImpl
     }
 
     @Override
-    public Message createImageAttachmentMessage(String groupId, long timestamp,
-                                                String text, List<Attachment> attachments) {
+    public Message createAttachmentMessage(String groupId, long timestamp, String text,
+                                           List<Attachment> attachments, Message.Type messageType) {
         return new Message(UUID.randomUUID().toString(), groupId, timestamp,
-                           text, Message.Type.IMAGES, attachments);
+                           text, messageType, attachments);
     }
 
     @Override

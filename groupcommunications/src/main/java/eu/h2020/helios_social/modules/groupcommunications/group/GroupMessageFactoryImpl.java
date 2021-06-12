@@ -38,12 +38,12 @@ public class GroupMessageFactoryImpl implements
                     .peerId(new PeerId(null, fakeId))
                     .funny_name(funnyName).build();
         return new GroupMessage(UUID.randomUUID().toString(), groupId,
-                timestamp, text, Message.Type.TEXT, peerInfo);
+                                timestamp, text, Message.Type.TEXT, peerInfo);
     }
 
     @Override
-    public GroupMessage createImageAttachmentMessage(String groupId, List<Attachment> attachments,
-                                                     String text, long timestamp, String funnyName, String fakeId) {
+    public GroupMessage createAttachmentMessage(String groupId, List<Attachment> attachments, Message.Type messageType,
+                                                String text, long timestamp, String funnyName, String fakeId) {
         Identity identity = identityManager.getIdentity();
         PeerInfo peerInfo;
         if (funnyName == null)
@@ -56,6 +56,6 @@ public class GroupMessageFactoryImpl implements
                     .funny_name(funnyName).build();
 
         return new GroupMessage(UUID.randomUUID().toString(), groupId,
-                timestamp, text, Message.Type.IMAGES, attachments, peerInfo);
+                                timestamp, text, messageType, attachments, peerInfo);
     }
 }
