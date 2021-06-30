@@ -70,7 +70,7 @@ public class SearchManagerImpl implements SearchManager<Transaction> {
                             q.getQueryLatitude(),
                             q.getQueryLongitude()
                     );
-                    if (distance <= q.getQueryRadius()) {
+                    if (distance <= locationForum.getRadius()) {
                         score.put(locationForum, distance / q.getQueryRadius());
                     }
                 }
