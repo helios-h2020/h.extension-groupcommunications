@@ -20,13 +20,17 @@ import eu.h2020.helios_social.core.contextualegonetwork.Interaction;
 import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosMessagingReceiver;
 import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosNetworkAddress;
 import eu.h2020.helios_social.modules.groupcommunications.api.attachment.AttachmentManager;
+import eu.h2020.helios_social.modules.groupcommunications.api.contact.Contact;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.FormatException;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Attachment;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfList;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.Encoder;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchGroupException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ConnectionRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ConnectionRemovedFromContextEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.AckMessageEvent;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
@@ -38,6 +42,7 @@ import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageH
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageState;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageTracker;
 import eu.h2020.helios_social.modules.groupcommunications.api.mining.MiningManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageReceivedFromUnknownGroupEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageSentEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PrivateMessageReceivedEvent;
 import eu.h2020.helios_social.modules.socialgraphmining.SocialGraphMiner;
@@ -103,15 +108,23 @@ public class PrivateMessageReceiver
         String stringMessage = new String(data, StandardCharsets.UTF_8);
         Message privateMessage =
                 new Gson().fromJson(stringMessage, Message.class);
+        ContactId contactId =
+                new ContactId(heliosNetworkAddress.getNetworkId());
         try {
-            ContactId contactId =
-                    new ContactId(heliosNetworkAddress.getNetworkId());
             if (privateMessage.getMessageType().equals(Message.Type.ACK)) {
                 LOG.info("Ack Received...");
                 onReceiveAckMessage(contactId, privateMessage);
+            } else if (privateMessage.getMessageType().equals(Message.Type.ACK_INVALID_GROUP)) {
+                LOG.info("Ack of Invalid Group Received...");
+                onReceiveAckInvalidGroup(contactId, privateMessage);
             } else {
                 onReceivePrivateMessage(contactId, privateMessage);
             }
+        } catch (NoSuchGroupException ex) {
+            eventBus.broadcast(new MessageReceivedFromUnknownGroupEvent(
+                    contactId.getId(),
+                    privateMessage.getGroupId())
+            );
         } catch (DbException e) {
             e.printStackTrace();
         }
@@ -174,6 +187,33 @@ public class PrivateMessageReceiver
         messageTracker.setDeliveredFlag(fields[2]);
         eventBus.broadcast(new MessageSentEvent(fields[2]));
 
+    }
+
+    private void onReceiveAckInvalidGroup(ContactId contactId, Message ack) throws DbException {
+        Transaction txn = db.startTransaction(false);
+        try {
+            String contextId = db.getGroupContext(txn, ack.getGroupId());
+            if (contextId.equals("All")) {
+                Contact removedConnection = db.getContact(txn, contactId);
+                LOG.info(removedConnection.getAlias());
+                db.removeContact(txn, contactId);
+                egoNetwork.removeNodeIfExists(removedConnection.getId().getId());
+                eventBus.broadcast(new ConnectionRemovedEvent(removedConnection));
+            } else {
+                Contact connection = db.getContact(txn, contactId);
+                DBContext context = db.getContext(txn, contextId);
+                db.removeContact(txn, contactId.getId(), contextId);
+                egoNetwork.getOrCreateContext(context.getName() + "%" + context.getId())
+                        .removeNodeIfExists(egoNetwork.getOrCreateNode(connection.getId().getId(), null));
+                eventBus.broadcast(new ConnectionRemovedFromContextEvent(connection, context.getName(), contextId));
+            }
+            egoNetwork.save();
+            db.commitTransaction(txn);
+        } catch (DbException ex) {
+            ex.printStackTrace();
+        } finally {
+            db.endTransaction(txn);
+        }
     }
 
     private void ackMessage(Transaction txn, ContactId contactId, Message privateMessage) throws DbException {

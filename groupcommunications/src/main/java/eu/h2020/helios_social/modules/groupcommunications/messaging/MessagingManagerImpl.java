@@ -10,6 +10,7 @@ import eu.h2020.helios_social.core.contextualegonetwork.ContextualEgoNetwork;
 import eu.h2020.helios_social.core.contextualegonetwork.Interaction;
 import eu.h2020.helios_social.modules.groupcommunications.api.attachment.AttachmentManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Attachment;
+import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerId;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfList;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.Encoder;
@@ -36,6 +37,7 @@ import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Messagin
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.GroupMessage;
 import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerInfo;
 import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroup;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageReceivedFromUnknownGroupEvent;
 import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
 
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.PRIVATE_MESSAGE_PROTOCOL;
@@ -242,6 +244,14 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
                         PRIVATE_MESSAGE_PROTOCOL,
                         ((AckMessageEvent) e).getContactId(),
                         ((AckMessageEvent) e).getAck()
+                );
+            });
+        } else if (e instanceof MessageReceivedFromUnknownGroupEvent) {
+            ioExecutor.execute(() -> {
+                communicationManager.sendDirectMessage(
+                        PRIVATE_MESSAGE_PROTOCOL,
+                        new PeerId(((MessageReceivedFromUnknownGroupEvent) e).getPeerId()),
+                        new Message(((MessageReceivedFromUnknownGroupEvent) e).getGroupId())
                 );
             });
         }
