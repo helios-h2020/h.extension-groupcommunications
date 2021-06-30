@@ -41,7 +41,7 @@ public class ProfileManagerImpl implements ProfileManager<Transaction> {
 
 	@Override
 	public boolean containsProfile(String contextId) throws DbException {
-		Transaction txn = db.startTransaction(false);
+		Transaction txn = db.startTransaction(true);
 		boolean isProfileExists;
 		try {
 			isProfileExists = db.containsProfile(txn, contextId);

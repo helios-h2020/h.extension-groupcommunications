@@ -73,7 +73,6 @@ public class QueryManagerImpl implements QueryManager, EventListener {
 
     @Override
     public void sendQueryResponse(PeerId peerId, QueryResponse<Queryable> queryResponse) {
-        LOG.info("QUERYRESPONSE: " + queryResponse.getEntities().entrySet().iterator().next().getValue().getQueryableType());
         ioExecutor.execute(() -> {
             communicationManager.sendDirectMessage(QUERY_RESPONSE_PROTOCOL, peerId, queryResponse);
         });

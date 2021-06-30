@@ -99,6 +99,8 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
             LOG.log(Level.SEVERE, e.getMessage(), e);
             e.printStackTrace();
         }
+        LOG.info("PEER ID: " + heliosMessaging.getPeerId());
+        LOG.info("CURRENT PEER ID: " + identityManager.getIdentity().getNetworkId());
 
         if (identityManager.getIdentity().getNetworkId() == null) {
             try {
@@ -144,7 +146,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
 
         LOG.info("Is helios peer connected? " + heliosMessaging.isConnected());
 
-        sendOnlineStatusToAllContacts(10000);
+        sendOnlineStatusToAllContacts(30000);
 
         heliosMessaging.announceTag(APP_TAG);
         heliosMessaging.observeTag(APP_TAG);
