@@ -53,15 +53,12 @@ public class ProfilingWorker extends Worker {
     private static final int NOTIFICATION_ID = 0;
     private ModelType modelType;
 
-    private ContextualEgoNetwork egoNetwork;
     private ContentAwareProfileManager profileManager;
     private Class<? extends ContentAwareProfile> profileClass;
     private PPRMiner pprMiner;
 
     public ProfilingWorker(@NonNull Context context, @NonNull WorkerParameters workerParams,
-                           ContextualEgoNetwork egoNetwork,
-                           ContentAwareProfileManager profileManager,
-                           SwitchableMiner switchableMiner) {
+                           ContentAwareProfileManager profileManager) {
         super(context, workerParams);
         try {
             this.modelType = ModelType.valueOf(workerParams.getInputData().getString(MODEL));
@@ -69,9 +66,7 @@ public class ProfilingWorker extends Worker {
             this.modelType = ModelType.COARSE;
         }
         this.profileClass = ProfilingUtils.getProfileClass(modelType);
-        this.egoNetwork = egoNetwork;
         this.profileManager = profileManager;
-        this.pprMiner = (PPRMiner) switchableMiner.getMiner(PPRMiner.class.getName() + "_" + profileClass.getName());
     }
 
     @NonNull
@@ -119,22 +114,9 @@ public class ProfilingWorker extends Worker {
         if (progress < 100) {
             nbuilder.setOngoing(true);
         } else {
-            List<Interest> interests = ((InterestProfile) profileManager.getProfile(profileClass)).getInterests();
-            LOG.info("Success: " + interests + "");
             nbuilder.setContentText("completed").setOngoing(false);
-
-            DenseTensor personalization = new DenseTensor(interests.size());
-            for (int i = 0; i < interests.size(); i++) {
-                personalization.put(i, interests.get(i).getWeight());
-            }
-            try {
-                pprMiner.updatePersonalization(personalization);
-                egoNetwork.save();
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-
         }
+
         Notification notification = nbuilder.build();
 
         return new ForegroundInfo(NOTIFICATION_ID, notification);

@@ -1,5 +1,7 @@
 package eu.h2020.helios_social.modules.groupcommunications.mining;
 
+import android.util.Log;
+
 import androidx.work.Constraints;
 import androidx.work.Data;
 import androidx.work.ExistingWorkPolicy;
@@ -15,6 +17,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -25,8 +28,13 @@ import eu.h2020.helios_social.core.contextualegonetwork.ContextualEgoNetwork;
 import eu.h2020.helios_social.core.contextualegonetwork.Node;
 import eu.h2020.helios_social.modules.contentawareprofiling.interestcategories.InterestCategories;
 import eu.h2020.helios_social.modules.contentawareprofiling.interestcategories.InterestCategoriesHierarchy;
+import eu.h2020.helios_social.modules.contentawareprofiling.profile.CoarseInterestsProfile;
+import eu.h2020.helios_social.modules.contentawareprofiling.profile.FineInterestsProfile;
+import eu.h2020.helios_social.modules.contentawareprofiling.profile.Interest;
+import eu.h2020.helios_social.modules.contentawareprofiling.profile.InterestProfile;
 import eu.h2020.helios_social.modules.groupcommunications.api.mining.MathUtils;
 import eu.h2020.helios_social.modules.groupcommunications_utils.battery.event.BatteryEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.IoExecutor;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
 import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
@@ -53,12 +61,14 @@ public class MiningManagerImpl implements MiningManager, EventListener {
     private final static Logger LOG = getLogger(TAG);
 
     private final SwitchableMiner switchableMiner;
+    private final Executor ioExecutor;
     private final ContextualEgoNetwork egoNetwork;
     private final SettingsManager settingsManager;
     private final WorkManager workManager;
 
     @Inject
     public MiningManagerImpl(SwitchableMiner switchableMiner,
+                             @IoExecutor Executor ioExecutor,
                              ContextualEgoNetwork egoNetwork,
                              SettingsManager settingsManager,
                              WorkManager workManager) {
@@ -66,6 +76,7 @@ public class MiningManagerImpl implements MiningManager, EventListener {
         this.egoNetwork = egoNetwork;
         this.settingsManager = settingsManager;
         this.workManager = workManager;
+        this.ioExecutor = ioExecutor;
     }
 
     @Override
@@ -98,9 +109,19 @@ public class MiningManagerImpl implements MiningManager, EventListener {
 
     @Override
     public List getSmoothPersonalizedProfile(ContentAwareProfilingType profilingType) {
-        if (profilingType == ContentAwareProfilingType.COARSE_INTEREST_RPOFILE) {
-            DenseTensor smoothedPersonalization = (DenseTensor) ((PPRMiner) switchableMiner.getMiner(COARSE_INTEREST_PROFILE_PERSONALIZER_NAME)).getSmoothedPersonalization();
+        if (profilingType == ContentAwareProfilingType.COARSE_INTEREST_PROFILE) {
+            DenseTensor smoothedPersonalization = (DenseTensor) ((PPRMiner) switchableMiner
+                    .getMiner(COARSE_INTEREST_PROFILE_PERSONALIZER_NAME))
+                    .getNormalizedSmoothedPersonalization(
+                            egoNetwork.getCurrentContext()
+                    );
+            LOG.info(smoothedPersonalization.toString());
+            LOG.info(((PPRMiner) switchableMiner.getMiner(COARSE_INTEREST_PROFILE_PERSONALIZER_NAME))
+                             .getPersonalization(egoNetwork.getCurrentContext())
+                             .toString()
+            );
             List<Double> personalizedProfile = Arrays.stream(smoothedPersonalization.toArray()).boxed().collect(Collectors.toList());
+            LOG.info("PersonalizedProfile: " + personalizedProfile);
 
             ArrayList<InterestCategories> interests = InterestCategoriesHierarchy.coarseCategories;
             List<Double> topk = MathUtils.findTopK(personalizedProfile, 3);
@@ -112,8 +133,10 @@ public class MiningManagerImpl implements MiningManager, EventListener {
             topCategories.add(interests.get(personalizedProfile.indexOf(topk.get(2))));
             return topCategories;
         } else if (profilingType == ContentAwareProfilingType.FINE_INTEREST_PROFILE) {
-            DenseTensor smoothedPersonalization = (DenseTensor) ((PPRMiner) switchableMiner.getMiner(FINE_INTEREST_PROFILE_PERSONALIZER_NAME)).getSmoothedPersonalization();
+            DenseTensor smoothedPersonalization = (DenseTensor) ((PPRMiner) switchableMiner.getMiner(FINE_INTEREST_PROFILE_PERSONALIZER_NAME))
+                    .getNormalizedSmoothedPersonalization(egoNetwork.getCurrentContext());
             List<Double> personalizedProfile = Arrays.stream(smoothedPersonalization.toArray()).boxed().collect(Collectors.toList());
+            LOG.info("PersonalizedProfile: " + personalizedProfile);
 
             ArrayList<InterestCategories> interests = InterestCategoriesHierarchy.fineCategories;
             List<Double> topk = MathUtils.findTopK(personalizedProfile, 4);
@@ -138,7 +161,7 @@ public class MiningManagerImpl implements MiningManager, EventListener {
                 Settings s = settingsManager.getSettings(SETTINGS_NAMESPACE);
                 ContentAwareProfilingType profilingType = ContentAwareProfilingType.fromValue(s.getInt(PREF_CONTENT_PROFILING, 0));
 
-                if (profilingType == ContentAwareProfilingType.COARSE_INTEREST_RPOFILE) {
+                if (profilingType == ContentAwareProfilingType.COARSE_INTEREST_PROFILE) {
                     LOG.info("Selected Profiling Type: " + profilingType);
                     Constraints constraints = new Constraints.Builder()
                             .build();
@@ -146,10 +169,36 @@ public class MiningManagerImpl implements MiningManager, EventListener {
                             .setInputData(new Data.Builder().putString("MODEL", ModelType.COARSE.toString()).build()).build();
 
                     workManager.enqueueUniqueWork(
-                            "ContentAwareProfiler",
+                            "ContentAwareProfiler_" + ModelType.COARSE.toString(),
                             ExistingWorkPolicy.KEEP,
                             (OneTimeWorkRequest) request
-                    );
+                    ).getResult().addListener(new Runnable() {
+                        @Override
+                        public void run() {
+                            List<Interest> interests = ((InterestProfile) egoNetwork.getEgo().getOrCreateInstance(CoarseInterestsProfile.class)).getInterests();
+                            LOG.info("Profiling has been completed successfully: " + interests + "");
+
+                            DenseTensor personalization = new DenseTensor(interests.size());
+                            try {
+                                for (int i = 0; i < interests.size(); i++) {
+                                    personalization.put(i, interests.get(i).getWeight());
+                                }
+                                try {
+                                    PPRMiner pprMiner = (PPRMiner) switchableMiner.getMiner(COARSE_INTEREST_PROFILE_PERSONALIZER_NAME);
+                                    LOG.info("Personalization: " + personalization);
+                                    egoNetwork.getEgo()
+                                            .getOrCreateInstance(COARSE_INTEREST_PROFILE_PERSONALIZER_NAME + "personalization", DenseTensor.class)
+                                            .setToZero().selfAdd(personalization);
+                                    pprMiner.updatePersonalization(personalization);
+                                    egoNetwork.save();
+                                } catch (Exception ex) {
+                                    ex.printStackTrace();
+                                }
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+                        }
+                    }, ioExecutor);
 
                     LOG.info("Work request with id " + request.getId() + " enqueued!");
                 } else if (profilingType == ContentAwareProfilingType.FINE_INTEREST_PROFILE) {
@@ -161,10 +210,36 @@ public class MiningManagerImpl implements MiningManager, EventListener {
                             .setInputData(new Data.Builder().putString("MODEL", ModelType.FINE.toString()).build()).build();
 
                     workManager.enqueueUniqueWork(
-                            "ContentAwareProfiler",
+                            "ContentAwareProfiler_" + ModelType.FINE.toString(),
                             ExistingWorkPolicy.KEEP,
                             (OneTimeWorkRequest) request
-                    );
+                    ).getResult().addListener(new Runnable() {
+                        @Override
+                        public void run() {
+                            List<Interest> interests = ((InterestProfile) egoNetwork.getEgo().getOrCreateInstance(FineInterestsProfile.class)).getInterests();
+                            LOG.info("Profiling has been completed successfully: " + interests + "");
+
+                            DenseTensor personalization = new DenseTensor(interests.size());
+                            try {
+                                for (int i = 0; i < interests.size(); i++) {
+                                    personalization.put(i, interests.get(i).getWeight());
+                                }
+                                try {
+                                    PPRMiner pprMiner = (PPRMiner) switchableMiner.getMiner(FINE_INTEREST_PROFILE_PERSONALIZER_NAME);
+                                    LOG.info("Personalization: " + personalization);
+                                    egoNetwork.getEgo()
+                                            .getOrCreateInstance(FINE_INTEREST_PROFILE_PERSONALIZER_NAME + "personalization", DenseTensor.class)
+                                            .setToZero().selfAdd(personalization);
+                                    pprMiner.updatePersonalization(personalization);
+                                    egoNetwork.save();
+                                } catch (Exception ex) {
+                                    ex.printStackTrace();
+                                }
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+                        }
+                    }, ioExecutor);
 
                     LOG.info("Work request with id " + request.getId() + " enqueued!");
                 }

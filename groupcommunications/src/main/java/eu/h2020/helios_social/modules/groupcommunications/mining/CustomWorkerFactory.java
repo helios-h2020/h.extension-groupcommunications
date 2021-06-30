@@ -33,17 +33,11 @@ public class CustomWorkerFactory extends WorkerFactory {
     private static String TAG = CustomWorkerFactory.class.getName();
     private final static Logger LOG = getLogger(TAG);
 
-    private ContextualEgoNetwork egoNetwork;
     private ContentAwareProfileManager profileManager;
-    private SwitchableMiner switchableMiner;
 
     @Inject
-    public CustomWorkerFactory(ContextualEgoNetwork egoNetwork,
-                               ContentAwareProfileManager profileManager,
-                               SwitchableMiner switchableMiner) {
-        this.egoNetwork = egoNetwork;
+    public CustomWorkerFactory(ContentAwareProfileManager profileManager) {
         this.profileManager = profileManager;
-        this.switchableMiner = switchableMiner;
     }
 
     @Nullable
@@ -61,10 +55,9 @@ public class CustomWorkerFactory extends WorkerFactory {
             if (workerClassName.equals(ProfilingWorker.class.getName())) {
                 Constructor<? extends Worker> constructor = Class.forName(workerClassName)
                         .asSubclass(Worker.class).getDeclaredConstructor(Context.class,
-                                                                         WorkerParameters.class, ContextualEgoNetwork.class,
-                                                                         ContentAwareProfileManager.class, SwitchableMiner.class);
-                worker = constructor.newInstance(appContext, workerParameters, egoNetwork,
-                                                 profileManager, switchableMiner);
+                                                                         WorkerParameters.class,
+                                                                         ContentAwareProfileManager.class);
+                worker = constructor.newInstance(appContext, workerParameters, profileManager);
             } else {
                 //Default construction of other workers
                 Constructor<? extends Worker> constructor = Class.forName(workerClassName)

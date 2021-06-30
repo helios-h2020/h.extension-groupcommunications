@@ -24,6 +24,7 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event
 import eu.h2020.helios_social.modules.socialgraphmining.GNN.GNNMiner;
 import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
 import eu.h2020.helios_social.modules.socialgraphmining.diffusion.PPRMiner;
+import eu.h2020.helios_social.modules.socialgraphmining.heuristics.RepeatAndReplyMiner;
 import mklab.JGNN.core.tensor.DenseTensor;
 
 @Module
@@ -40,6 +41,7 @@ public class MiningModule {
     @Singleton
     SwitchableMiner getSwitchableMiner(ContextualEgoNetwork egoNetwork) {
         SwitchableMiner switchableMiner = new SwitchableMiner(egoNetwork);
+        switchableMiner.createMiner(RepeatAndReplyMiner.class.getName(), RepeatAndReplyMiner.class);
         switchableMiner.createMiner(GNNMiner.class.getName(), GNNMiner.class);
         DenseTensor coarseInterestPersonalization = egoNetwork.getEgo()
                 .getOrCreateInstance(
