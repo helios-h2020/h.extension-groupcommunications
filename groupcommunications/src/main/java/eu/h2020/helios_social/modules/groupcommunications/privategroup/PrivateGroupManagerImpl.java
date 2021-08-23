@@ -1,13 +1,23 @@
 package eu.h2020.helios_social.modules.groupcommunications.privategroup;
 
+import android.util.Log;
+
 import com.github.javafaker.Faker;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 
 import javax.inject.Inject;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.CommunicationManager;
+import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupMember;
+import eu.h2020.helios_social.modules.groupcommunications.api.messaging.AbstractMessage;
+import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerId;
+import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroupMemberListInfo;
+import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroupNewMemberInfo;
+import eu.h2020.helios_social.modules.groupcommunications_utils.Bytes;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfEntry;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfList;
@@ -26,7 +36,10 @@ import eu.h2020.helios_social.modules.groupcommunications.api.exception.FormatEx
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageTracker;
 import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroup;
 import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroupManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.IdentityManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.IoExecutor;
 
+import static eu.h2020.helios_social.modules.groupcommunications.api.contact.connection.ConnectionConstants.CONNECTIONS_RECEIVER_ID;
 import static eu.h2020.helios_social.modules.groupcommunications.api.group.GroupConstants.GROUP_MEMBERS;
 import static eu.h2020.helios_social.modules.groupcommunications.api.group.GroupConstants.GROUP_SHOW_TRUE_SELF;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.PEER_FAKE_ID;
@@ -40,6 +53,7 @@ public class PrivateGroupManagerImpl
     private final MessageTracker messageTracker;
     private final Encoder encoder;
     private final Parser parser;
+
 
     @Inject
     public PrivateGroupManagerImpl(DatabaseComponent db,
@@ -136,10 +150,10 @@ public class PrivateGroupManagerImpl
     }
 
     @Override
-    public Collection<Contact> getMembers(String groupId)
-            throws DbException, FormatException {
+    public Collection<GroupMember> getMembers(String groupId)
+            throws DbException {
         Transaction txn = db.startTransaction(true);
-        Collection<Contact> members;
+        Collection<GroupMember> members;
         try {
             members = getMembers(txn, groupId);
             db.commitTransaction(txn);
@@ -150,25 +164,19 @@ public class PrivateGroupManagerImpl
     }
 
     @Override
-    public Collection<Contact> getMembers(Transaction txn, String groupId)
-            throws DbException, FormatException {
-        Metadata metadata = db.getGroupMetadata(txn, groupId);
-        BdfDictionary meta = parser.parseMetadata(metadata);
-        BdfList members = meta.getList(GROUP_MEMBERS);
-        Collection<Contact> privateGroupMembers = new ArrayList<>();
-        for (int i = 0; i < members.size(); i++) {
-            ContactId contactId = new ContactId(members.getString(i));
-            privateGroupMembers.add(contactManager.getContact(contactId));
-        }
-        return privateGroupMembers;
+    public Collection<GroupMember> getMembers(Transaction txn, String groupId)
+            throws DbException {
+        Collection<GroupMember> groupMembers = db.getGroupMembers(txn,groupId);
+
+        return groupMembers;
     }
 
     @Override
-    public void addMember(String groupId, ContactId contactId)
+    public void addMember(GroupMember groupMember)
             throws DbException, FormatException {
         Transaction txn = db.startTransaction(false);
         try {
-            addMember(txn, groupId, contactId);
+            addMember(txn, groupMember);
             db.commitTransaction(txn);
         } finally {
             db.endTransaction(txn);
@@ -176,13 +184,11 @@ public class PrivateGroupManagerImpl
     }
 
     @Override
-    public void addMember(Transaction txn, String groupId, ContactId contactId)
-            throws DbException, FormatException {
-        Metadata metadata = db.getGroupMetadata(txn, groupId);
-        BdfDictionary meta = parser.parseMetadata(metadata);
-        BdfList members = meta.getList(GROUP_MEMBERS);
-        members.add(contactId.getId().getBytes());
-        db.mergeGroupMetadata(txn, groupId, encoder.encodeMetadata(meta));
+    public void addMember(Transaction txn, GroupMember groupMember)
+            throws DbException {
+
+        db.addGroupMember(txn,groupMember);
+        Log.d("addMember","true");
     }
 
     @Override
@@ -207,6 +213,7 @@ public class PrivateGroupManagerImpl
         messageTracker.initializeGroupCount(txn, privateGroup.getId());
     }
 
+
     private PrivateGroup getPrivateGroup(Transaction txn,
                                          String groupId)
             throws FormatException, DbException {
@@ -224,4 +231,5 @@ public class PrivateGroupManagerImpl
         return new PrivateGroup(group.getId(), group.getContextId(), name,
                 password, owner);
     }
+
 }

@@ -5,6 +5,8 @@ import java.util.Collection;
 
 import javax.inject.Inject;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupMember;
+import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerId;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.Encoder;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.Parser;
@@ -77,6 +79,12 @@ public class GroupManagerImpl implements GroupManager<Transaction> {
         try {
             if (group instanceof PrivateGroup) {
                 privateGroupManager.addPrivateGroup(txn, (PrivateGroup) group);
+                PeerId pid = new PeerId(identityManager.getIdentity().getId());
+                GroupMember groupMember = new GroupMember(pid,
+                        identityManager.getIdentity().getAlias(),
+                        identityManager.getIdentity().getProfilePicture(),
+                        group.getId());
+                privateGroupManager.addMember(txn,groupMember);
                 eventBus.broadcast(new JoinGroupEvent(group.getId(), ((PrivateGroup) group).getPassword(), group.getGroupType()));
             } else if (group instanceof LocationForum) {
                 forumManager.addForum((LocationForum) group, ForumType.LOCATION, true);

@@ -1,7 +1,10 @@
 package eu.h2020.helios_social.modules.groupcommunications.group.sharing;
 
+import android.util.Log;
+
 import com.google.gson.Gson;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -10,8 +13,15 @@ import java.util.logging.Logger;
 
 import javax.inject.Inject;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.contact.Contact;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
+import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactManager;
+import eu.h2020.helios_social.modules.groupcommunications.api.contact.connection.ConnectionInfo;
+import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupMember;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.AbstractMessage;
+import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroupManager;
+import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroupMemberListInfo;
+import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroupNewMemberInfo;
 import eu.h2020.helios_social.modules.groupcommunications.api.utils.Pair;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
@@ -21,6 +31,7 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.identity.Identit
 import eu.h2020.helios_social.modules.groupcommunications_utils.identity.IdentityManager;
 import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.IoExecutor;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupInvitationAutoAcceptEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupMemberListUpdateEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.JoinGroupEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.LeaveGroupEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.system.Clock;
@@ -44,6 +55,8 @@ import eu.h2020.helios_social.modules.groupcommunications.api.group.sharing.Shar
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.FORUM_MEMBERSHIP_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_INVITE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_INVITE_RESPONSE_PROTOCOL;
+import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_MEMBER_LIST_PROTOCOL;
+import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.NEW_GROUP_MEMBER_PROTOCOL;
 import static java.util.logging.Logger.getLogger;
 
 public class SharingGroupManagerImpl implements SharingGroupManager,
@@ -58,19 +71,25 @@ public class SharingGroupManagerImpl implements SharingGroupManager,
     private final DatabaseComponent db;
     private final Executor ioExecutor;
     private final Clock clock;
+    private final ContactManager contactManager;
+    private final PrivateGroupManager privateGroupManager;
 
     @Inject
     public SharingGroupManagerImpl(DatabaseComponent db,
                                    @IoExecutor Executor ioExecutor,
                                    GroupManager groupManager, IdentityManager identityManager,
                                    CommunicationManager communicationManager,
-                                   Clock clock) {
+                                   Clock clock,
+                                   ContactManager contactManager,
+                                   PrivateGroupManager privateGroupManager) {
         this.db = db;
         this.ioExecutor = ioExecutor;
         this.groupManager = groupManager;
         this.identityManager = identityManager;
         this.clock = clock;
         this.communicationManager = communicationManager;
+        this.contactManager = contactManager;
+        this.privateGroupManager = privateGroupManager;
     }
 
     @Override
@@ -117,6 +136,21 @@ public class SharingGroupManagerImpl implements SharingGroupManager,
                                     groupInvitation.getGroupId(),
                                     groupInvitation
                                             .getGroupInvitationType()));
+                // add the owner as a member
+//                Contact contact = null;
+//                try {
+//                    contact = contactManager.getContact(groupInvitation.getContactId());
+//                    PeerId pid = new PeerId(contact.getId().getId());
+//                    GroupMember groupMember = new GroupMember(pid,
+//                            contact.getAlias(),
+//                            contact.getProfilePicture(),
+//                            groupInvitation.getGroupId());
+//                    privateGroupManager.addMember(groupMember);
+//                } catch (DbException e) {
+//                    e.printStackTrace();
+//                }
+
+
             } else if (groupInvitation.getGroupInvitationType().getValue() >= 1) {
                 Forum forum;
                 if (groupInvitation.getGroupInvitationType().equals(GroupInvitationType.LocationForum))
@@ -209,8 +243,46 @@ public class SharingGroupManagerImpl implements SharingGroupManager,
             } catch (FormatException formatException) {
                 formatException.printStackTrace();
             }
+        } else if (e instanceof GroupMemberListUpdateEvent){
+            sendUpdatedGroupMembers(((GroupMemberListUpdateEvent) e).getGroupMembers(),
+                    ((GroupMemberListUpdateEvent) e).getPeerId(),
+                    ((GroupMemberListUpdateEvent) e).getGroupId());
         }
     }
+
+    @Override
+    public void sendUpdatedGroupMembers (Collection<GroupMember> groupMembers, String newMemberId, String groupId){
+        // send the new member to other group members
+        ContactId contactId =
+                new ContactId(newMemberId);
+        Contact contact = null;
+        try {
+            contact = contactManager.getContact(contactId);
+            PrivateGroupNewMemberInfo privateGroupNewMemberInfo = new PrivateGroupNewMemberInfo(
+                    contact.getAlias(),
+                    contact.getProfilePicture(),
+                    newMemberId,
+                    groupId);
+
+            for (GroupMember m : groupMembers) {
+                // do not send to the new member and self
+                if (!m.getPeerId().getId().equals(newMemberId) && !m.getPeerId().getId().equals(identityManager.getIdentity().getId())){
+                    ContactId contactId1 = new ContactId(m.getPeerId().getId());
+                    sendMessage(NEW_GROUP_MEMBER_PROTOCOL,
+                            contactId1, privateGroupNewMemberInfo);
+                }
+                else if (m.getPeerId().getId().equals(newMemberId)){
+                    PrivateGroupMemberListInfo privateGroupMemberListInfo = new PrivateGroupMemberListInfo(groupMembers);
+                    Log.d("contactId",contactId.getId());
+
+                    sendMessage(GROUP_MEMBER_LIST_PROTOCOL, contactId,privateGroupMemberListInfo);
+                }
+            }
+        } catch (DbException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     private void notifyModeratorsForJoiningForum(Transaction txn, Forum forum)
             throws DbException, FormatException {

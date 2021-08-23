@@ -46,7 +46,9 @@ import static eu.h2020.helios_social.modules.groupcommunications.api.Communicati
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.FORUM_MEMBERSHIP_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_INVITE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_INVITE_RESPONSE_PROTOCOL;
+import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_MEMBER_LIST_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.LOCATION_QUERY_PROTOCOL;
+import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.NEW_GROUP_MEMBER_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.PRIVATE_MESSAGE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.QUERY_RESPONSE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.REQUEST_PROTOCOL;
@@ -110,6 +112,10 @@ public class GroupCommunicationsModule {
         communicationManager.registerReceiver(TEXT_QUERY_PROTOCOL, queryReceiver);
         communicationManager.registerReceiver(LOCATION_QUERY_PROTOCOL, queryReceiver);
         communicationManager.registerReceiver(QUERY_RESPONSE_PROTOCOL, queryResponseReceiver);
+        communicationManager.registerReceiver(GROUP_MEMBER_LIST_PROTOCOL,
+                groupInvitationReceiver);
+        communicationManager.registerReceiver(NEW_GROUP_MEMBER_PROTOCOL,
+                groupInvitationReceiver);
         lifecycleManager.registerOpenDatabaseHook(communicationManager);
         lifecycleManager.registerService(communicationManager);
         return communicationManager;
