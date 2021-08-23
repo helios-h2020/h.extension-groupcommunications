@@ -1,5 +1,7 @@
 package eu.h2020.helios_social.modules.groupcommunications.resourcediscovery.queries;
 
+import android.util.Log;
+
 import com.google.common.cache.Cache;
 import com.google.gson.Gson;
 
@@ -95,7 +97,7 @@ public class QueryReceiver implements HeliosMessagingReceiver {
 
                     if (textQuery.isDead()) return;
                     if (results != null && results.size() > 0) {
-                        QueryResponse qr = new QueryResponse(textQuery.getQueryId());
+                        QueryResponse qr = new QueryResponse(textQuery.getQueryId(),System.currentTimeMillis());
                         qr.appendResults(results);
                         if (queryResultsCache.asMap().containsKey(textQuery.getQueryId())) {
                             queryResultsCache.getIfPresent(textQuery.getQueryId())
@@ -131,6 +133,7 @@ public class QueryReceiver implements HeliosMessagingReceiver {
                 e.printStackTrace();
             }
         } else {
+            LOG.info("location query received");
             LocationQuery locationQuery = new Gson().fromJson(stringMessage, LocationQuery.class);
             if (queryCache.asMap().containsKey(locationQuery.getQueryId())) {
                 System.out.println("query cache: " + queryCache.asMap());
@@ -145,7 +148,7 @@ public class QueryReceiver implements HeliosMessagingReceiver {
 
                     if (locationQuery.isDead()) return;
                     if (results != null && results.size() > 0) {
-                        QueryResponse qr = new QueryResponse(locationQuery.getQueryId());
+                        QueryResponse qr = new QueryResponse(locationQuery.getQueryId(),System.currentTimeMillis());
                         qr.appendResults(results);
                         if (queryResultsCache.asMap().containsKey(locationQuery.getQueryId())) {
                             queryResultsCache.getIfPresent(locationQuery.getQueryId())

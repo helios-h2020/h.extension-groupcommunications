@@ -14,6 +14,7 @@ import eu.h2020.helios_social.modules.groupcommunications.api.CommunicationManag
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
 import eu.h2020.helios_social.modules.groupcommunications.api.peer.Peer;
 import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerId;
+import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.queries.LocationQuery;
 import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.queries.Query;
 import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.queries.QueryCache;
 import eu.h2020.helios_social.modules.groupcommunications.api.resourcediscovery.queries.QueryForwarderManager;
@@ -52,6 +53,28 @@ public class QueryManagerImpl implements QueryManager, EventListener {
     @Override
     public void sendQuery(Query query) throws DbException {
         LOG.info("Query info: " + query);
+        queryCache.put(query.getQueryId(), "self");
+        List<PeerId> nextHops = queryForwarderManager.getNextHops(new PeerId("self"), query);
+        LOG.info("Next Hops: " + nextHops);
+        for (PeerId peerId : nextHops) {
+            forwardQuery(peerId, query);
+        }
+    }
+
+    @Override
+    public void sendQuery(TextQuery query) throws DbException {
+        LOG.info("Text Query info: " + query);
+        queryCache.put(query.getQueryId(), "self");
+        List<PeerId> nextHops = queryForwarderManager.getNextHops(new PeerId("self"), query);
+        LOG.info("Next Hops: " + nextHops);
+        for (PeerId peerId : nextHops) {
+            forwardQuery(peerId, query);
+        }
+    }
+
+    @Override
+    public void sendQuery(LocationQuery query) throws DbException {
+        LOG.info("Location Query info: " + query);
         queryCache.put(query.getQueryId(), "self");
         List<PeerId> nextHops = queryForwarderManager.getNextHops(new PeerId("self"), query);
         LOG.info("Next Hops: " + nextHops);

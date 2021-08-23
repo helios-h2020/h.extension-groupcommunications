@@ -75,7 +75,13 @@ public class QueryResponseReceiver implements HeliosMessagingReceiver {
         QueryResponse<Queryable> queryResponse = gson.fromJson(stringMessage, new TypeToken<QueryResponse<Queryable>>() {
         }.getType());
 
+        if (queryResponse.isDead())
+        {   LOG.info("isDead");
+            return;
+        }
+
         if (queryCache.getIfPresent(queryResponse.getQueryId()) == null) return;
+        String sourcePeer = queryCache.getIfPresent(queryResponse.getQueryId());
 
         if (queryResultsCache.getIfPresent(queryResponse.getQueryId()) != null) {
             try {
@@ -88,11 +94,14 @@ public class QueryResponseReceiver implements HeliosMessagingReceiver {
             queryResultsCache.put(queryResponse.getQueryId(), queryResponse);
         }
 
-        String sourcePeer = queryCache.getIfPresent(queryResponse.getQueryId());
+
         QueryResponse qr = queryResultsCache.getIfPresent(queryResponse.getQueryId());
 
         LOG.info("Query Response is: " + qr + " sourcePeer: " + sourcePeer);
-        if (qr != null && sourcePeer != null && sourcePeer.equals("self")) {
+        qr.decrementTLL();
+        if (qr.isDead()) {
+            LOG.info("Response query is died discard " + qr.getQueryId());
+        } else if (qr != null && sourcePeer != null && sourcePeer.equals("self")) {
             eventBus.broadcast(new QueryResultsReceivedEvent(qr));
         } else if (qr != null && sourcePeer != null) {
             eventBus.broadcast(new QueryResponseReadyToSendEvent(new PeerId(sourcePeer), qr));

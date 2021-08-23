@@ -18,7 +18,7 @@ public class KRandomWalkQueryForwarder extends QueryForwarder {
     private static Logger LOG = getLogger(KRandomWalkQueryForwarder.class.getName());
 
     private final SecureRandom secureRandom;
-    private final static int k = 3;
+    private final static int k = 5;
 
     public KRandomWalkQueryForwarder(ContactManager contactManager) {
         super(contactManager);
@@ -41,6 +41,7 @@ public class KRandomWalkQueryForwarder extends QueryForwarder {
         while (i < k && !neighbors.isEmpty()) {
             int nextForward = secureRandom.nextInt(neighbors.size());
             nextForwards.add(neighbors.remove(nextForward));
+            i++;
         }
 
         LOG.info("next hops: " + nextForwards);
