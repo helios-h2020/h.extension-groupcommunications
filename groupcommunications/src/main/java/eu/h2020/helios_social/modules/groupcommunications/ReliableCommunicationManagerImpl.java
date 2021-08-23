@@ -4,10 +4,12 @@ import android.app.Application;
 import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -124,6 +126,11 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
                 @Override
                 public void showMessage(HeliosTopic heliosTopic, HeliosMessage heliosMessage) {
                     LOG.info(heliosMessage.getMessage());
+//                    try {
+//                        Thread.sleep(500);
+//                    } catch (InterruptedException e) {
+//                        e.printStackTrace();
+//                    }
                 }
             });
             //as soon as she has subscribe send a message to notify that she has arrived
@@ -345,9 +352,15 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
                             })
                             .collect(Collectors.toList());
                     LOG.info("Sending online status to addresses: " + addresses + " ...");
-                    heliosMessaging.sendOnlineStatusTo(addresses);
-
-                } catch (DbException e) {
+                    //heliosMessaging.sendOnlineStatusTo(addresses);
+                    Iterator var2 = addresses.iterator();
+                    while(var2.hasNext()) {
+                        HeliosNetworkAddress address = (HeliosNetworkAddress)var2.next();
+                        LOG.info("Sending online status to addresses: " + address + " ...");
+                        heliosMessaging.sendOnlineStatusTo(address);
+                        Thread.sleep(1000);
+                    }
+                } catch (DbException | InterruptedException e) {
                     LOG.log(Level.SEVERE, e.getMessage(), e);
                     e.printStackTrace();
                 }
