@@ -145,7 +145,7 @@ public class ContextManagerImpl implements ContextManager<Transaction> {
         try {
             DBContext dbContext =
                     new DBContext(context.getId(), context.getName(),
-                            context.getColor(), ContextType.GENERAL);
+                            context.getColor(), ContextType.GENERAL, context.getPrivateName());
             db.addContext(txn, dbContext);
             BdfDictionary meta = BdfDictionary.of(
                     new BdfEntry(CONTEXT_KEY_MEMBERS, new BdfList()),
@@ -164,7 +164,7 @@ public class ContextManagerImpl implements ContextManager<Transaction> {
         try {
             DBContext dbContext =
                     new DBContext(context.getId(), context.getName(),
-                            context.getColor(), ContextType.LOCATION);
+                            context.getColor(), ContextType.LOCATION, context.getPrivateName());
             db.addContext(txn, dbContext);
             BdfDictionary meta = BdfDictionary.of(
                     new BdfEntry(CONTEXT_LAT, context.getLat()),
@@ -201,12 +201,38 @@ public class ContextManagerImpl implements ContextManager<Transaction> {
     }
 
     @Override
+    public Collection<DBContext> getContextsWithoutPrivateNames() throws DbException {
+        Transaction txn = db.startTransaction(true);
+        Collection<DBContext> contexts = new ArrayList<>();
+        try {
+            contexts = db.getContextsWithoutPrivateNames(txn);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return contexts;
+    }
+
+    @Override
     public Context getContext(String contextId)
             throws DbException, FormatException {
         Transaction txn = db.startTransaction(true);
         Context context = null;
         try {
-            context = getContext(txn, contextId);
+            context = getContext(txn, contextId,false);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return context;
+    }
+
+    @Override
+    public Context getContext(String contextId, boolean hidePrivateName) throws DbException, FormatException {
+        Transaction txn = db.startTransaction(true);
+        Context context = null;
+        try {
+            context = getContext(txn, contextId, hidePrivateName);
             db.commitTransaction(txn);
         } finally {
             db.endTransaction(txn);
@@ -218,6 +244,39 @@ public class ContextManagerImpl implements ContextManager<Transaction> {
     public Integer getContextColor(String contextId) throws DbException {
         return db.transactionWithResult(true, txn ->
                 db.getContextColor(txn, contextId));
+    }
+
+    @Override
+    public String getContextPrivateName(String contextId) throws DbException {
+        return db.transactionWithResult(true, txn ->
+                db.getContext(txn, contextId).getPrivateName());
+    }
+
+    @Override
+    public String getContextName(String contextId) throws DbException {
+        return db.transactionWithResult(true, txn ->
+                db.getContext(txn, contextId).getName());
+    }
+
+    @Override
+    public void setContextName(String contextId, String name) throws DbException {
+        db.transaction(false, txn -> {
+            db.setContextName(txn, contextId, name);
+        });
+    }
+
+    @Override
+    public void setContextPrivateName(String contextId, String name)  throws DbException {
+        db.transaction(false, txn -> {
+            db.setContextPrivateName(txn, contextId, name);
+        });
+    }
+
+    @Override
+    public void addContextPrivateNameFeature()  throws DbException {
+        db.transaction(false, txn -> {
+            db.addContextPrivateNameFeature(txn);
+        });
     }
 
     @Override
@@ -480,13 +539,19 @@ public class ContextManagerImpl implements ContextManager<Transaction> {
         );
     }
 
-    private Context getContext(Transaction txn, String contextId)
+    private Context getContext(Transaction txn, String contextId, boolean hidePrivateName)
             throws DbException, FormatException {
         DBContext dbContext = db.getContext(txn, contextId);
 
         if (dbContext.getContextType().equals(ContextType.GENERAL)) {
-            return new GeneralContextProxy(dbContext.getId(),
-                    dbContext.getName(), dbContext.getColor(), false);
+            if (hidePrivateName){
+                return new GeneralContextProxy(dbContext.getId(),
+                        dbContext.getName(), dbContext.getColor(), false, dbContext.getName());
+            }
+            else {
+                return new GeneralContextProxy(dbContext.getId(),
+                        dbContext.getName(), dbContext.getColor(), false, dbContext.getPrivateName());
+            }
         } else if (dbContext.getContextType()
                 .equals(ContextType.LOCATION)) {
             Metadata metadata = db.getContextMetadata(txn, contextId);
@@ -496,10 +561,11 @@ public class ContextManagerImpl implements ContextManager<Transaction> {
             Double radius = meta.getDouble(CONTEXT_RADIUS);
             return new LocationContextProxy(dbContext.getId(),
                     dbContext.getName(), dbContext.getColor(), lat, lng,
-                    radius);
+                    radius, dbContext.getPrivateName());
         } else {
             //TODO: Temporal & Spatiotemporal Contexts
             return null;
         }
     }
+
 }

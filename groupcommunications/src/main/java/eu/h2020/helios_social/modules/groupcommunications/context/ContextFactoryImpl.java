@@ -18,17 +18,17 @@ public class ContextFactoryImpl implements ContextFactory {
 	}
 
 	@Override
-	public GeneralContextProxy createContext(@NotNull String name,
-			@NotNull int color) {
+	public GeneralContextProxy createContext(String name,
+			@NotNull int color, @NotNull String privateName) {
 		return new GeneralContextProxy(UUID.randomUUID().toString(), name,
-				color, true);
+				color, true, privateName);
 	}
 
 	@Override
-	public LocationContextProxy createLocationContext(@NotNull String name,
-			@NotNull int color, double lat, double lng, int radius) {
+	public LocationContextProxy createLocationContext(String name,
+			@NotNull int color, double lat, double lng, int radius, @NotNull  String privateName) {
 		return new LocationContextProxy(UUID.randomUUID().toString(), name,
-				color, lat, lng, radius);
+				color, lat, lng, radius, privateName);
 	}
 
 	@Override

@@ -44,9 +44,21 @@ public interface ContextManager<T> {
 
     Collection<DBContext> getContexts() throws DbException;
 
+    Collection<DBContext> getContextsWithoutPrivateNames() throws DbException;
+
     Context getContext(String contextId) throws DbException, FormatException;
 
+    Context getContext(String contextId,boolean hidePrivateName) throws DbException, FormatException;
+
+
     Integer getContextColor(String contextId) throws DbException;
+
+    String getContextPrivateName(String contextId) throws DbException;
+
+    String getContextName(String contextId) throws DbException;
+
+    void setContextName(String contextId, String Name) throws DbException;
+
 
     boolean isMember(T txn, String contextId, ContactId cid)
             throws DbException, FormatException;
@@ -99,6 +111,10 @@ public interface ContextManager<T> {
     int pendingIncomingContextInvitations() throws DbException;
 
     int pendingOutgoingContextInvitations() throws DbException;
+
+    void setContextPrivateName(String contextId, String name) throws DbException;
+
+    void addContextPrivateNameFeature() throws DbException;
 
     class ContextCount {
 

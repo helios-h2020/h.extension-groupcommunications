@@ -11,11 +11,11 @@ import eu.h2020.helios_social.modules.groupcommunications.context.proxy.TimeCont
 
 public interface ContextFactory {
 
-	GeneralContextProxy createContext(@NotNull String name,
-			int hexColor);
+	GeneralContextProxy createContext(String name,
+			int hexColor, @NotNull String privateName);
 
-	LocationContextProxy createLocationContext(@NotNull String name,
-			int color, double lat, double lng, int radius);
+	LocationContextProxy createLocationContext(String name,
+			int color, double lat, double lng, int radius, @NotNull String privateName);
 
 	TimeContextProxy createTimeContext(@NotNull String name,
 			int hexColor, long startTime,
