@@ -64,7 +64,7 @@ dependencies {
 
     implementation 'eu.h2020.helios_social.core.context:context:1.0.10'
     implementation('eu.h2020.helios_social.core' +
-            '.messagingnodejslibp2ptest:messagingnodejslibp2ptest:1.0.18')
+            '.messagingnodejslibp2ptest:messagingnodejslibp2ptest:1.0.19')
     implementation 'eu.h2020.helios_social.modules.contentawareprofiling:contentawareprofiling:1.0.13'
 
     implementation "androidx.work:work-runtime:$work_version"
