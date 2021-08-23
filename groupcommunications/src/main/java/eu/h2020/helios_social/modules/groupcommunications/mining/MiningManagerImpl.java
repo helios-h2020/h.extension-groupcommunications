@@ -13,11 +13,13 @@ import org.apache.commons.lang3.NotImplementedException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -26,15 +28,24 @@ import javax.inject.Inject;
 
 import eu.h2020.helios_social.core.contextualegonetwork.ContextualEgoNetwork;
 import eu.h2020.helios_social.core.contextualegonetwork.Node;
+import eu.h2020.helios_social.core.messaging.HeliosIdentityInfo;
+import eu.h2020.helios_social.core.messaging.HeliosTopic;
 import eu.h2020.helios_social.modules.contentawareprofiling.interestcategories.InterestCategories;
 import eu.h2020.helios_social.modules.contentawareprofiling.interestcategories.InterestCategoriesHierarchy;
 import eu.h2020.helios_social.modules.contentawareprofiling.profile.CoarseInterestsProfile;
 import eu.h2020.helios_social.modules.contentawareprofiling.profile.FineInterestsProfile;
 import eu.h2020.helios_social.modules.contentawareprofiling.profile.Interest;
 import eu.h2020.helios_social.modules.contentawareprofiling.profile.InterestProfile;
+import eu.h2020.helios_social.modules.groupcommunications.api.exception.FormatException;
+import eu.h2020.helios_social.modules.groupcommunications.api.forum.Forum;
+import eu.h2020.helios_social.modules.groupcommunications.api.group.Group;
 import eu.h2020.helios_social.modules.groupcommunications.api.mining.MathUtils;
+import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroup;
 import eu.h2020.helios_social.modules.groupcommunications_utils.battery.event.BatteryEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.Identity;
 import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.IoExecutor;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.LifecycleManager;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Event;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventListener;
 import eu.h2020.helios_social.modules.groupcommunications_utils.nullsafety.NotNullByDefault;
@@ -44,19 +55,23 @@ import eu.h2020.helios_social.modules.contentawareprofiling.model.ModelType;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
 import eu.h2020.helios_social.modules.groupcommunications.api.mining.ContentAwareProfilingType;
 import eu.h2020.helios_social.modules.groupcommunications.api.mining.MiningManager;
+import eu.h2020.helios_social.modules.socialgraphmining.GNN.GNNMiner;
 import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
 import eu.h2020.helios_social.modules.socialgraphmining.diffusion.PPRMiner;
+import eu.h2020.helios_social.modules.socialgraphmining.heuristics.RepeatAndReplyMiner;
 import mklab.JGNN.core.tensor.DenseTensor;
 
 import static eu.h2020.helios_social.modules.groupcommunications.mining.MiningModule.COARSE_INTEREST_PROFILE_PERSONALIZER_NAME;
 import static eu.h2020.helios_social.modules.groupcommunications.mining.MiningModule.FINE_INTEREST_PROFILE_PERSONALIZER_NAME;
 import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.PREF_CONTENT_PROFILING;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.PREF_RECOMMENDATION_MINER;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.PREF_SHARE_PREFS;
 import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.SETTINGS_NAMESPACE;
 import static java.util.logging.Logger.getLogger;
 
 @Immutable
 @NotNullByDefault
-public class MiningManagerImpl implements MiningManager, EventListener {
+public class MiningManagerImpl implements MiningManager, EventListener, LifecycleManager.OpenDatabaseHook {
     private static String TAG = MiningManagerImpl.class.getName();
     private final static Logger LOG = getLogger(TAG);
 
@@ -247,6 +262,19 @@ public class MiningManagerImpl implements MiningManager, EventListener {
                 dbException.printStackTrace();
             }
         }
+    }
+
+    @Override
+    public void onDatabaseOpened(Transaction txn) throws DbException {
+        Settings s = settingsManager.getSettings(txn, SETTINGS_NAMESPACE);
+        s.getInt(PREF_RECOMMENDATION_MINER, 0);
+        boolean sharingPrefs = s.getBoolean(PREF_SHARE_PREFS, true);
+        int selectedMiner = s.getInt(PREF_RECOMMENDATION_MINER, 0);
+        if (selectedMiner == 0)
+            switchableMiner.setActiveMiner(GNNMiner.class.getName());
+        else
+            switchableMiner.setActiveMiner(RepeatAndReplyMiner.class.getName());
+        switchableMiner.setSendPermision(sharingPrefs);
     }
 
 }

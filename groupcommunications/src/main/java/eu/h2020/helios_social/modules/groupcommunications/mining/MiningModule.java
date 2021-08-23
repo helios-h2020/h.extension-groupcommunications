@@ -19,13 +19,21 @@ import eu.h2020.helios_social.modules.contentawareprofiling.ContentAwareProfileM
 import eu.h2020.helios_social.modules.contentawareprofiling.profile.CoarseInterestsProfile;
 import eu.h2020.helios_social.modules.contentawareprofiling.profile.FineInterestsProfile;
 import eu.h2020.helios_social.modules.contentawareprofiling.profile.Interest;
+import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
 import eu.h2020.helios_social.modules.groupcommunications.api.mining.MiningManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.LifecycleManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.settings.Settings;
+import eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsManager;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
 import eu.h2020.helios_social.modules.socialgraphmining.GNN.GNNMiner;
 import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
 import eu.h2020.helios_social.modules.socialgraphmining.diffusion.PPRMiner;
 import eu.h2020.helios_social.modules.socialgraphmining.heuristics.RepeatAndReplyMiner;
 import mklab.JGNN.core.tensor.DenseTensor;
+
+import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.PREF_RECOMMENDATION_MINER;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.PREF_SHARE_PREFS;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.SETTINGS_NAMESPACE;
 
 @Module
 public class MiningModule {
@@ -39,7 +47,7 @@ public class MiningModule {
 
     @Provides
     @Singleton
-    SwitchableMiner getSwitchableMiner(ContextualEgoNetwork egoNetwork) {
+    SwitchableMiner getSwitchableMiner(ContextualEgoNetwork egoNetwork, SettingsManager settingsManager) {
         SwitchableMiner switchableMiner = new SwitchableMiner(egoNetwork);
         switchableMiner.createMiner(RepeatAndReplyMiner.class.getName(), RepeatAndReplyMiner.class);
         switchableMiner.createMiner(GNNMiner.class.getName(), GNNMiner.class);
@@ -72,16 +80,15 @@ public class MiningModule {
                                               egoNetwork,
                                               fineInterestPersonalization
                                       ));
-
-        switchableMiner.setActiveMiner(GNNMiner.class.getName());
         egoNetwork.save();
         return switchableMiner;
     }
 
     @Provides
     @Singleton
-    MiningManager provideMiningManager(EventBus eventBus,
+    MiningManager provideMiningManager(EventBus eventBus, LifecycleManager lifecycleManager,
                                        MiningManagerImpl miningManager) {
+        lifecycleManager.registerOpenDatabaseHook(miningManager);
         eventBus.addListener(miningManager);
         return miningManager;
     }
