@@ -56,7 +56,7 @@ import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbExcept
 import eu.h2020.helios_social.modules.groupcommunications.api.mining.ContentAwareProfilingType;
 import eu.h2020.helios_social.modules.groupcommunications.api.mining.MiningManager;
 import eu.h2020.helios_social.modules.socialgraphmining.GNN.GNNMiner;
-import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
+import eu.h2020.helios_social.modules.socialgraphmining.combination.WeightedMiner ;
 import eu.h2020.helios_social.modules.socialgraphmining.diffusion.PPRMiner;
 import eu.h2020.helios_social.modules.socialgraphmining.heuristics.RepeatAndReplyMiner;
 import mklab.JGNN.core.tensor.DenseTensor;
@@ -64,7 +64,10 @@ import mklab.JGNN.core.tensor.DenseTensor;
 import static eu.h2020.helios_social.modules.groupcommunications.mining.MiningModule.COARSE_INTEREST_PROFILE_PERSONALIZER_NAME;
 import static eu.h2020.helios_social.modules.groupcommunications.mining.MiningModule.FINE_INTEREST_PROFILE_PERSONALIZER_NAME;
 import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.PREF_CONTENT_PROFILING;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.PREF_GNN_RECOMMENDATION_MINER;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.PREF_PPR_RECOMMENDATION_MINER;
 import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.PREF_RECOMMENDATION_MINER;
+import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.PREF_RNR_RECOMMENDATION_MINER;
 import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.PREF_SHARE_PREFS;
 import static eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsConsts.SETTINGS_NAMESPACE;
 import static java.util.logging.Logger.getLogger;
@@ -75,14 +78,14 @@ public class MiningManagerImpl implements MiningManager, EventListener, Lifecycl
     private static String TAG = MiningManagerImpl.class.getName();
     private final static Logger LOG = getLogger(TAG);
 
-    private final SwitchableMiner switchableMiner;
+    private final WeightedMiner  switchableMiner;
     private final Executor ioExecutor;
     private final ContextualEgoNetwork egoNetwork;
     private final SettingsManager settingsManager;
     private final WorkManager workManager;
 
     @Inject
-    public MiningManagerImpl(SwitchableMiner switchableMiner,
+    public MiningManagerImpl(WeightedMiner  switchableMiner,
                              @IoExecutor Executor ioExecutor,
                              ContextualEgoNetwork egoNetwork,
                              SettingsManager settingsManager,
@@ -121,6 +124,14 @@ public class MiningManagerImpl implements MiningManager, EventListener, Lifecycl
                         (oldValue, newValue) -> oldValue,
                         LinkedHashMap::new));
     }
+
+    @Override
+    public HashMap<Node, Double> getInteractionRecommendationsProbabilities(String egoContextId){
+        HashMap<Node, Double> recommendations =
+                switchableMiner.recommendInteractions(egoNetwork.getOrCreateContext(egoContextId));
+        return recommendations;
+    }
+
 
     @Override
     public List getSmoothPersonalizedProfile(ContentAwareProfilingType profilingType) {
@@ -269,11 +280,28 @@ public class MiningManagerImpl implements MiningManager, EventListener, Lifecycl
         Settings s = settingsManager.getSettings(txn, SETTINGS_NAMESPACE);
         s.getInt(PREF_RECOMMENDATION_MINER, 0);
         boolean sharingPrefs = s.getBoolean(PREF_SHARE_PREFS, true);
-        int selectedMiner = s.getInt(PREF_RECOMMENDATION_MINER, 0);
-        if (selectedMiner == 0)
-            switchableMiner.setActiveMiner(GNNMiner.class.getName());
-        else
-            switchableMiner.setActiveMiner(RepeatAndReplyMiner.class.getName());
+
+//        int selectedMiner = s.getInt(PREF_RECOMMENDATION_MINER, 0);
+//        if (selectedMiner == 0)
+//            switchableMiner.setActiveMiner(GNNMiner.class.getName());
+//        else if (selectedMiner == 1)
+//            switchableMiner.setActiveMiner(RepeatAndReplyMiner.class.getName());
+//        else if (selectedMiner == 2)
+//            switchableMiner.setActiveMiner(FINE_INTEREST_PROFILE_PERSONALIZER_NAME);
+
+        boolean GNNMinerValue = s.getBoolean(PREF_GNN_RECOMMENDATION_MINER,true);
+        boolean RnRMinerValue = s.getBoolean(PREF_RNR_RECOMMENDATION_MINER,false);
+        boolean PPRMinerValue = s.getBoolean(PREF_PPR_RECOMMENDATION_MINER,false);
+        LOG.info("GNNMinerValue: " + GNNMinerValue);
+        LOG.info("RnRMinerValue: " + GNNMinerValue);
+        LOG.info("PPRMinerValue: " + GNNMinerValue);
+        if (GNNMinerValue) switchableMiner.setMinerWeight(GNNMiner.class.getName(),1);
+        else switchableMiner.setMinerWeight(GNNMiner.class.getName(),0);
+        if (RnRMinerValue) switchableMiner.setMinerWeight(RepeatAndReplyMiner.class.getName(),1);
+        else switchableMiner.setMinerWeight(RepeatAndReplyMiner.class.getName(),0);
+        if (PPRMinerValue) switchableMiner.setMinerWeight(FINE_INTEREST_PROFILE_PERSONALIZER_NAME,1);
+        else switchableMiner.setMinerWeight(FINE_INTEREST_PROFILE_PERSONALIZER_NAME,0);
+
         switchableMiner.setSendPermision(sharingPrefs);
     }
 

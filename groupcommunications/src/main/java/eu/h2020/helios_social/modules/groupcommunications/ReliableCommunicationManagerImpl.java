@@ -6,7 +6,16 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 
+import com.google.gson.Gson;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.spongycastle.crypto.CryptoException;
+
+import java.nio.ByteBuffer;
+import java.security.PublicKey;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -16,6 +25,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import javax.crypto.SecretKey;
 import javax.inject.Inject;
 
 import eu.h2020.helios_social.core.messaging.HeliosConnectionInfo;
@@ -25,10 +35,11 @@ import eu.h2020.helios_social.core.messaging.HeliosMessageListener;
 import eu.h2020.helios_social.core.messaging.HeliosMessagingException;
 import eu.h2020.helios_social.core.messaging.HeliosTopic;
 import eu.h2020.helios_social.core.messaging.ReliableHeliosMessagingNodejsLibp2pImpl;
-import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosEgoTag;
-import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosMessagingReceiver;
-import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosNetworkAddress;
+import eu.h2020.helios_social.core.messaging.HeliosEgoTag;
+import eu.h2020.helios_social.core.messaging.HeliosMessagingReceiver;
+import eu.h2020.helios_social.core.messaging.HeliosNetworkAddress;
 import eu.h2020.helios_social.modules.groupcommunications.api.CommunicationManager;
+import eu.h2020.helios_social.modules.groupcommunications.api.contact.Contact;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
@@ -37,8 +48,11 @@ import eu.h2020.helios_social.modules.groupcommunications.api.forum.Forum;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.Group;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.AbstractMessage;
+import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Message;
+import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageAndKey;
 import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerId;
 import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroup;
+import eu.h2020.helios_social.modules.groupcommunications.db.crypto.security.HeliosCryptoManager;
 import eu.h2020.helios_social.modules.groupcommunications.messaging.GroupMessageListener;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
 import eu.h2020.helios_social.modules.groupcommunications_utils.identity.Identity;
@@ -48,8 +62,8 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.Servic
 import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.ServiceException;
 
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.APP_TAG;
+import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.PRIVATE_MESSAGE_PROTOCOL;
 import static java.util.logging.Logger.getLogger;
-
 public class ReliableCommunicationManagerImpl implements CommunicationManager<HeliosMessagingReceiver>, Service,
         LifecycleManager.OpenDatabaseHook {
 
@@ -68,7 +82,7 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
     private HashMap<String, HeliosMessagingReceiver> receivers;
     private HandlerThread handlerThread;
     private Handler handler;
-
+    private Boolean needRestart = false;
 
     @Inject
     public ReliableCommunicationManagerImpl(Application app,
@@ -214,12 +228,41 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
         LOG.info(
                 "send direct message!: " + heliosNetworkAddress.getNetworkId());
         try {
-            heliosMessaging.sendTo(
-                    heliosNetworkAddress,
-                    protocolId,
-                    message.toJson().getBytes()
-            );
-        } catch (RuntimeException e) {
+            if(protocolId.equals(PRIVATE_MESSAGE_PROTOCOL)){
+
+                // get contact's public key
+                Contact contact = contactManager.getContact(contactId);
+                if (contact== null){
+                    heliosMessaging.sendTo(
+                            heliosNetworkAddress,
+                            protocolId,
+                            message.toJson().getBytes()
+                    );
+                    return;
+                }
+                PublicKey publicKey = contact.getPublicKey();
+                HeliosCryptoManager heliosCryptoManager = HeliosCryptoManager.getInstance();
+
+                LOG.info("messageAndKeyJson" + Arrays.toString(publicKey.getEncoded()));
+
+                try {
+                    // encrypt message
+                    byte [] encryptedMessage = heliosCryptoManager.encryptMessage(publicKey,message).toJson().getBytes();
+                    heliosMessaging.sendTo(heliosNetworkAddress, protocolId, encryptedMessage);
+                } catch (CryptoException e) {
+                    e.printStackTrace();
+                    // do not encrpyt message, send it as it is.
+                    // heliosMessaging.sendTo(heliosNetworkAddress, protocolId, message.toJson().getBytes());
+                }
+
+            } else{
+                    heliosMessaging.sendTo(
+                        heliosNetworkAddress,
+                        protocolId,
+                        message.toJson().getBytes()
+                );
+            }
+        } catch (RuntimeException | DbException  e) {
             LOG.log(Level.SEVERE, e.getMessage(), e);
             e.printStackTrace();
         }
@@ -373,4 +416,29 @@ public class ReliableCommunicationManagerImpl implements CommunicationManager<He
         return heliosMessaging.isConnected();
     }
 
+    @Override
+    public void stop() {
+        try {
+            stopService();
+        } catch (ServiceException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void start(){
+        try {
+            startService();
+        } catch (ServiceException e) {
+            e.printStackTrace();
+        }
+    }
+    @Override
+    public Boolean getNeedRestart() {
+        return needRestart;
+    }
+    @Override
+    public void setNeedRestart(Boolean needRestart) {
+        this.needRestart = needRestart;
+    }
 }

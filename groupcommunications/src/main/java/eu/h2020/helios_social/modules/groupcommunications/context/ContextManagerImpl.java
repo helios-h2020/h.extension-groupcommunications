@@ -8,6 +8,9 @@ import java.util.logging.Logger;
 import javax.inject.Inject;
 
 import eu.h2020.helios_social.core.context.Context;
+import eu.h2020.helios_social.core.context.ext.LocationContext;
+import eu.h2020.helios_social.core.context.ext.TimeContext;
+import eu.h2020.helios_social.modules.groupcommunications.context.proxy.SpatioTemporalContext;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfEntry;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfList;
@@ -27,12 +30,15 @@ import eu.h2020.helios_social.modules.groupcommunications.context.proxy.GeneralC
 import eu.h2020.helios_social.modules.groupcommunications.context.proxy.LocationContextProxy;
 import eu.h2020.helios_social.modules.groupcommunications.context.proxy.TimeContextProxy;
 
+import static eu.h2020.helios_social.modules.groupcommunications.context.ContextConstants.CONTEXT_END_TIME;
 import static eu.h2020.helios_social.modules.groupcommunications.context.ContextConstants.CONTEXT_FORUMS;
 import static eu.h2020.helios_social.modules.groupcommunications.context.ContextConstants.CONTEXT_KEY_MEMBERS;
 import static eu.h2020.helios_social.modules.groupcommunications.context.ContextConstants.CONTEXT_LAT;
 import static eu.h2020.helios_social.modules.groupcommunications.context.ContextConstants.CONTEXT_LNG;
 import static eu.h2020.helios_social.modules.groupcommunications.context.ContextConstants.CONTEXT_PRIVATE_GROUPS;
 import static eu.h2020.helios_social.modules.groupcommunications.context.ContextConstants.CONTEXT_RADIUS;
+import static eu.h2020.helios_social.modules.groupcommunications.context.ContextConstants.CONTEXT_REPEAT;
+import static eu.h2020.helios_social.modules.groupcommunications.context.ContextConstants.CONTEXT_START_TIME;
 import static java.util.logging.Logger.getLogger;
 
 
@@ -60,8 +66,8 @@ public class ContextManagerImpl implements ContextManager<Transaction> {
                 addContext(txn, (LocationContextProxy) context);
             } else if (context instanceof GeneralContextProxy) {
                 addContext(txn, (GeneralContextProxy) context);
-            } else if (context instanceof TimeContextProxy) {
-                //TODO
+            } else if (context instanceof SpatioTemporalContext) {
+                addContext(txn, (SpatioTemporalContext) context);
             }
             db.commitTransaction(txn);
         } finally {
@@ -181,6 +187,32 @@ public class ContextManagerImpl implements ContextManager<Transaction> {
     }
 
     @Override
+    public void addContext(Transaction txn, SpatioTemporalContext context)
+            throws DbException {
+        try {
+            DBContext dbContext =
+                    new DBContext(context.getId(), context.getName(),
+                            context.getColor(), ContextType.SPATIOTEMPORAL, context.getPrivateName());
+            db.addContext(txn, dbContext);
+
+            BdfDictionary meta = BdfDictionary.of(
+                    new BdfEntry(CONTEXT_LAT, context.getLat()),
+                    new BdfEntry(CONTEXT_LNG, context.getLon()),
+                    new BdfEntry(CONTEXT_RADIUS, context.getRadius()),
+                    new BdfEntry(CONTEXT_START_TIME, context.getStartTime()),
+                    new BdfEntry(CONTEXT_END_TIME, context.getEndTime()),
+                    new BdfEntry(CONTEXT_REPEAT, context.getRepeat()),
+                    new BdfEntry(CONTEXT_KEY_MEMBERS, new BdfList()),
+                    new BdfEntry(CONTEXT_PRIVATE_GROUPS, new BdfList()),
+                    new BdfEntry(CONTEXT_FORUMS, new BdfList())
+            );
+            db.mergeContextMetadata(txn, context.getId(), encoder.encodeMetadata(meta));
+        } catch (FormatException e) {
+            throw new DbException(e);
+        }
+    }
+
+    @Override
     public void removeContext(String contextId) throws DbException {
         db.transaction(false, txn -> {
             db.removeContext(txn, contextId);
@@ -200,18 +232,6 @@ public class ContextManagerImpl implements ContextManager<Transaction> {
         return contexts;
     }
 
-    @Override
-    public Collection<DBContext> getContextsWithoutPrivateNames() throws DbException {
-        Transaction txn = db.startTransaction(true);
-        Collection<DBContext> contexts = new ArrayList<>();
-        try {
-            contexts = db.getContextsWithoutPrivateNames(txn);
-            db.commitTransaction(txn);
-        } finally {
-            db.endTransaction(txn);
-        }
-        return contexts;
-    }
 
     @Override
     public Context getContext(String contextId)
@@ -272,12 +292,6 @@ public class ContextManagerImpl implements ContextManager<Transaction> {
         });
     }
 
-    @Override
-    public void addContextPrivateNameFeature()  throws DbException {
-        db.transaction(false, txn -> {
-            db.addContextPrivateNameFeature(txn);
-        });
-    }
 
     @Override
     public boolean isMember(Transaction txn, String contextId, ContactId cid)
@@ -562,10 +576,97 @@ public class ContextManagerImpl implements ContextManager<Transaction> {
             return new LocationContextProxy(dbContext.getId(),
                     dbContext.getName(), dbContext.getColor(), lat, lng,
                     radius, dbContext.getPrivateName());
-        } else {
+        }  else if (dbContext.getContextType()
+                .equals(ContextType.SPATIOTEMPORAL)) {
+            Metadata metadata = db.getContextMetadata(txn, contextId);
+            BdfDictionary meta = parser.parseMetadata(metadata);
+            Double lat = meta.getDouble(CONTEXT_LAT);
+            Double lng = meta.getDouble(CONTEXT_LNG);
+            Double radius = meta.getDouble(CONTEXT_RADIUS);
+            long startTime = meta.getLong(CONTEXT_START_TIME);
+            long endTime = meta.getLong(CONTEXT_END_TIME);
+            int repeat = meta.getInteger(CONTEXT_REPEAT);
+
+            return new SpatioTemporalContext(dbContext.getId(),
+                    dbContext.getName(), dbContext.getColor(), dbContext.getPrivateName(), new LocationContext(dbContext.getName(), lat, lng,
+                    radius), new TimeContext(null, dbContext.getName(), startTime,endTime,repeat));
+        }else {
             //TODO: Temporal & Spatiotemporal Contexts
             return null;
         }
     }
 
+    @Override
+    public int countUnreadMessagesInContext(String contextId) throws DbException {
+        Transaction txn = db.startTransaction(true);
+        int unreadMessages = 0;
+        try {
+            unreadMessages = db.countUnreadMessagesInContext(txn, contextId);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return unreadMessages;
+    }
+
+    @Override
+    public Collection<LocationContextProxy> getLocationContexts()
+            throws DbException, FormatException {
+        Transaction txn = db.startTransaction(true);
+        Collection<LocationContextProxy> locationContextProxies = null;
+        try {
+            Collection<DBContext> contexts = db.getContexts(txn);
+            locationContextProxies = new ArrayList<>();
+            for (DBContext context: contexts){
+                if (context.getContextType()
+                        .equals(ContextType.LOCATION)) {
+                    Metadata metadata = db.getContextMetadata(txn, context.getId());
+                    BdfDictionary meta = parser.parseMetadata(metadata);
+                    Double lat = meta.getDouble(CONTEXT_LAT);
+                    Double lng = meta.getDouble(CONTEXT_LNG);
+                    Double radius = meta.getDouble(CONTEXT_RADIUS);
+                    locationContextProxies.add( new LocationContextProxy(context.getId(),
+                            context.getName(), context.getColor(), lat, lng,
+                            radius, context.getPrivateName()));
+                }
+            }
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+
+        return locationContextProxies;
+    }
+
+    @Override
+    public Collection<SpatioTemporalContext> getSpatiotemporalContexts()
+            throws DbException, FormatException {
+        Transaction txn = db.startTransaction(true);
+        Collection<SpatioTemporalContext> spatioTemporalContexts = null;
+        try {
+            Collection<DBContext> contexts = db.getContexts(txn);
+            spatioTemporalContexts = new ArrayList<>();
+            for (DBContext context: contexts){
+                if (context.getContextType()
+                        .equals(ContextType.SPATIOTEMPORAL)) {
+                    Metadata metadata = db.getContextMetadata(txn, context.getId());
+                    BdfDictionary meta = parser.parseMetadata(metadata);
+                    Double lat = meta.getDouble(CONTEXT_LAT);
+                    Double lng = meta.getDouble(CONTEXT_LNG);
+                    Double radius = meta.getDouble(CONTEXT_RADIUS);
+                    long startTime = meta.getLong(CONTEXT_START_TIME);
+                    long endTime = meta.getLong(CONTEXT_END_TIME);
+                    int repeat = meta.getInteger(CONTEXT_REPEAT);
+                    spatioTemporalContexts.add( new SpatioTemporalContext(context.getId(),
+                            context.getName(), context.getColor(), context.getPrivateName(), new LocationContext(context.getName(), lat, lng,
+                            radius), new TimeContext(null, context.getName(), startTime,endTime,repeat)));
+                }
+            }
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+
+        return spatioTemporalContexts;
+    }
 }

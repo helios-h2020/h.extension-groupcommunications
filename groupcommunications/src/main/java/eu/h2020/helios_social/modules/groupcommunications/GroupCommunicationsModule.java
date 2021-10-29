@@ -44,9 +44,13 @@ import mklab.JGNN.core.tensor.DenseTensor;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.CONTEXT_INVITE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.CONTEXT_INVITE_RESPONSE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.FORUM_MEMBERSHIP_PROTOCOL;
+import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_INVITE_AUTO_ACCEPT_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_INVITE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_INVITE_RESPONSE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_MEMBER_LIST_PROTOCOL;
+import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_REQUEST_FORWARD_PROTOCOL;
+import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_REQUEST_PROTOCOL;
+import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.GROUP_REQUEST_RESPONSE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.LOCATION_QUERY_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.NEW_GROUP_MEMBER_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.PRIVATE_MESSAGE_PROTOCOL;
@@ -115,6 +119,14 @@ public class GroupCommunicationsModule {
         communicationManager.registerReceiver(GROUP_MEMBER_LIST_PROTOCOL,
                 groupInvitationReceiver);
         communicationManager.registerReceiver(NEW_GROUP_MEMBER_PROTOCOL,
+                groupInvitationReceiver);
+        communicationManager.registerReceiver(GROUP_REQUEST_PROTOCOL,
+                groupInvitationReceiver);
+        communicationManager.registerReceiver(GROUP_REQUEST_RESPONSE_PROTOCOL,
+                groupInvitationReceiver);
+        communicationManager.registerReceiver(GROUP_REQUEST_FORWARD_PROTOCOL,
+                groupInvitationReceiver);
+        communicationManager.registerReceiver(GROUP_INVITE_AUTO_ACCEPT_PROTOCOL,
                 groupInvitationReceiver);
         lifecycleManager.registerOpenDatabaseHook(communicationManager);
         lifecycleManager.registerService(communicationManager);

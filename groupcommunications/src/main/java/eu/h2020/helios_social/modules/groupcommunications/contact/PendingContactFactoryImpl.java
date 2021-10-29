@@ -2,6 +2,8 @@ package eu.h2020.helios_social.modules.groupcommunications.contact;
 
 import javax.inject.Inject;
 
+import eu.h2020.helios_social.modules.groupcommunications.db.crypto.security.HeliosCryptoManager;
+import eu.h2020.helios_social.modules.groupcommunications.db.crypto.security.RSAKeyUtils;
 import eu.h2020.helios_social.modules.groupcommunications_utils.system.Clock;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.PendingContact;
@@ -33,6 +35,7 @@ public class PendingContactFactoryImpl implements PendingContactFactory {
                 connectionInfo.getAlias(),
                 connectionInfo.getProfilePicture(),
                 PendingContactType.INCOMING,
-                connectionInfo.getMessage(), connectionInfo.getTimestamp());
+                connectionInfo.getMessage(), connectionInfo.getTimestamp(),
+                RSAKeyUtils.getPublicKeyFromBytes(connectionInfo.getPublicKey()));
     }
 }

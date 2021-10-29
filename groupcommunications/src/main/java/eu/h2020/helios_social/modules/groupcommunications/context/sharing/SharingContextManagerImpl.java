@@ -1,5 +1,7 @@
 package eu.h2020.helios_social.modules.groupcommunications.context.sharing;
 
+import android.util.Log;
+
 import com.google.gson.Gson;
 
 import java.util.Collection;
@@ -13,6 +15,7 @@ import javax.inject.Inject;
 
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.AbstractMessage;
+import eu.h2020.helios_social.modules.groupcommunications.context.proxy.SpatioTemporalContext;
 import eu.h2020.helios_social.modules.groupcommunications_utils.lifecycle.IoExecutor;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ContextInvitationAutoResponseEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
@@ -88,12 +91,19 @@ public class SharingContextManagerImpl implements SharingContextManager,
                     GeneralContextProxy newContext =
                             new Gson().fromJson(contextInvitation.getJson(),
                                                 GeneralContextProxy.class);
+                    Log.d("contextPrivateName: ",newContext.getPrivateName());
                     contextManager.addContext(txn, newContext);
                 } else if (contextInvitation.getContextType()
                         .equals(ContextType.LOCATION)) {
                     LocationContextProxy newContext =
                             new Gson().fromJson(contextInvitation.getJson(),
                                                 LocationContextProxy.class);
+                    contextManager.addContext(txn, newContext);
+                } else if (contextInvitation.getContextType()
+                        .equals(ContextType.SPATIOTEMPORAL)) {
+                    SpatioTemporalContext newContext =
+                            new Gson().fromJson(contextInvitation.getJson(),
+                                    SpatioTemporalContext.class);
                     contextManager.addContext(txn, newContext);
                 }
             }
@@ -148,7 +158,7 @@ public class SharingContextManagerImpl implements SharingContextManager,
     @Override
     public void rejectContextInvitation(ContextInvitation contextInvitation)
             throws DbException {
-        contextManager.removePendingContext(contextInvitation.getContextId());
+        contextManager.removeContextInvitation(contextInvitation.getContactId(),contextInvitation.getContextId());
         sendMessage(CONTEXT_INVITE_RESPONSE_PROTOCOL,
                     contextInvitation.getContactId(),
                     new ConnectionInfo().setConversationInfo(null,

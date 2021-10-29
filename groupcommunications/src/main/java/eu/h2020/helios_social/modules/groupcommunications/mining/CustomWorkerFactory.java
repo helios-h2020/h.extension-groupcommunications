@@ -21,7 +21,7 @@ import eu.h2020.helios_social.modules.contentawareprofiling.miners.CoarseInteres
 import eu.h2020.helios_social.modules.contentawareprofiling.miners.DMLProfileMiner;
 import eu.h2020.helios_social.modules.contentawareprofiling.miners.FineInterestProfileMiner;
 import eu.h2020.helios_social.modules.socialgraphmining.SocialGraphMiner;
-import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
+//import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
 
 import static java.util.logging.Logger.getLogger;
 

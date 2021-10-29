@@ -80,8 +80,14 @@ public class PrivateGroupManagerImpl
     }
 
     @Override
-    public void leavePrivateGroup(PrivateGroup privateGroup) {
-
+    public void leavePrivateGroup(String groupId) throws DbException {
+        Transaction txn = db.startTransaction(false);
+        try {
+            db.removeGroup(txn, groupId);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
     }
 
     @Override
@@ -189,6 +195,18 @@ public class PrivateGroupManagerImpl
 
         db.addGroupMember(txn,groupMember);
         Log.d("addMember","true");
+    }
+
+    @Override
+    public void removeMember(GroupMember groupMember) throws DbException, FormatException {
+        Transaction txn = db.startTransaction(false);
+        try {
+            db.removeGroupMember(txn,groupMember);
+            Log.d("removeMember","true");
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
     }
 
     @Override

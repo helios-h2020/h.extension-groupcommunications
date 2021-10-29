@@ -26,7 +26,7 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.settings.Setting
 import eu.h2020.helios_social.modules.groupcommunications_utils.settings.SettingsManager;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
 import eu.h2020.helios_social.modules.socialgraphmining.GNN.GNNMiner;
-import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
+import eu.h2020.helios_social.modules.socialgraphmining.combination.WeightedMiner ;
 import eu.h2020.helios_social.modules.socialgraphmining.diffusion.PPRMiner;
 import eu.h2020.helios_social.modules.socialgraphmining.heuristics.RepeatAndReplyMiner;
 import mklab.JGNN.core.tensor.DenseTensor;
@@ -47,8 +47,8 @@ public class MiningModule {
 
     @Provides
     @Singleton
-    SwitchableMiner getSwitchableMiner(ContextualEgoNetwork egoNetwork, SettingsManager settingsManager) {
-        SwitchableMiner switchableMiner = new SwitchableMiner(egoNetwork);
+    WeightedMiner  getSwitchableMiner(ContextualEgoNetwork egoNetwork, SettingsManager settingsManager) {
+        WeightedMiner  switchableMiner = new WeightedMiner (egoNetwork);
         switchableMiner.createMiner(RepeatAndReplyMiner.class.getName(), RepeatAndReplyMiner.class);
         switchableMiner.createMiner(GNNMiner.class.getName(), GNNMiner.class);
         DenseTensor coarseInterestPersonalization = egoNetwork.getEgo()
@@ -106,7 +106,11 @@ public class MiningModule {
         Configuration config = new Configuration.Builder()
                 .setWorkerFactory(customWorkerFactory)
                 .build();
-        WorkManager.initialize(app, config);
+        try {
+            WorkManager.initialize(app, config);
+        } catch (Exception e){
+            return WorkManager.getInstance(app);
+        }
         return WorkManager.getInstance(app);
     }
 }

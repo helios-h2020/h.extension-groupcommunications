@@ -2,9 +2,11 @@ package eu.h2020.helios_social.modules.groupcommunications.group;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import javax.inject.Inject;
 
+import eu.h2020.helios_social.modules.groupcommunications.api.forum.sharing.ForumAccessRequest;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupMember;
 import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerId;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
@@ -79,7 +81,7 @@ public class GroupManagerImpl implements GroupManager<Transaction> {
         try {
             if (group instanceof PrivateGroup) {
                 privateGroupManager.addPrivateGroup(txn, (PrivateGroup) group);
-                PeerId pid = new PeerId(identityManager.getIdentity().getId());
+                PeerId pid = new PeerId(identityManager.getIdentity().getNetworkId());
                 GroupMember groupMember = new GroupMember(pid,
                         identityManager.getIdentity().getAlias(),
                         identityManager.getIdentity().getProfilePicture(),
@@ -349,4 +351,82 @@ public class GroupManagerImpl implements GroupManager<Transaction> {
         return forumManager.getRole(txn, forum.getId());
     }
 
+    @Override
+    public void addGroupAccessRequest(ForumAccessRequest forumAccessRequest) throws DbException {
+        Transaction txn = db.startTransaction(false);
+        try {
+            db.addGroupAccessRequest(txn, forumAccessRequest);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+    }
+
+
+    @Override
+    public Collection<ForumAccessRequest> getGroupAccessRequests() throws DbException {
+        Transaction txn = db.startTransaction(true);
+        Collection<ForumAccessRequest> forumAccessRequests;
+        try {
+            forumAccessRequests = db.getGroupAccessRequests(txn);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return forumAccessRequests;
+    }
+
+
+    @Override
+    public void removeGroupAccessRequest(ContactId contactId, String pendingGroupId) throws DbException {
+        Transaction txn = db.startTransaction(false);
+        try {
+            db.removeGroupAccessRequest(txn, contactId,
+                    pendingGroupId);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+    }
+
+    @Override
+    public int pendingIncomingGroupAccessRequest()
+            throws DbException {
+        Transaction txn = db.startTransaction(true);
+        int pendingGroupInvitations = 0;
+        try {
+            pendingGroupInvitations = db.countGroupAccessRequest(txn, true);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return pendingGroupInvitations;
+    }
+
+    @Override
+    public int pendingOutgoingGroupAccessRequest()
+            throws DbException {
+        Transaction txn = db.startTransaction(true);
+        int pendingGroupInvitations = 0;
+        try {
+            pendingGroupInvitations = db.countGroupAccessRequest(txn, false);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return pendingGroupInvitations;
+    }
+
+    @Override
+    public boolean containsGroupAccessRequestByGroupId(String pendingGroupId) throws DbException {
+        Transaction txn = db.startTransaction(false);
+        boolean b = false;
+        try {
+            b = db.containsGroupAccessRequestByGroupId(txn, pendingGroupId);
+            db.commitTransaction(txn);
+        } finally {
+            db.endTransaction(txn);
+        }
+        return b;
+    }
 }

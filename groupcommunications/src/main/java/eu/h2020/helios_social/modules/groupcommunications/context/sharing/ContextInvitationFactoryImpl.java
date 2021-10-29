@@ -3,6 +3,7 @@ package eu.h2020.helios_social.modules.groupcommunications.context.sharing;
 import javax.inject.Inject;
 
 import eu.h2020.helios_social.core.context.Context;
+import eu.h2020.helios_social.modules.groupcommunications.context.proxy.SpatioTemporalContext;
 import eu.h2020.helios_social.modules.groupcommunications_utils.system.Clock;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
 import eu.h2020.helios_social.modules.groupcommunications.api.context.ContextType;
@@ -34,8 +35,14 @@ public class ContextInvitationFactoryImpl implements ContextInvitationFactory<Co
 			return new ContextInvitation(contactId, context.getId(),
 					context.getName(), ContextType.LOCATION,
 					contextProxy.toJson(), clock.currentTimeMillis(), false);
-		} else {
-			//TODO: TEMPORAL & SPATIOTEMPORAL CONTEXTS
+		} else if (context instanceof SpatioTemporalContext) {
+			SpatioTemporalContext contextProxy = (SpatioTemporalContext) context;
+			return new ContextInvitation(contactId, context.getId(),
+					context.getName(), ContextType.SPATIOTEMPORAL,
+					contextProxy.toJson(), clock.currentTimeMillis(), false);
+		}
+		else {
+			//TODO: TEMPORAL CONTEXTS
 			return null;
 		}
 

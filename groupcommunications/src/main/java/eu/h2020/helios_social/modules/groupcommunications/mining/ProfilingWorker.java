@@ -3,9 +3,7 @@ package eu.h2020.helios_social.modules.groupcommunications.mining;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.Context;
-import android.content.Intent;
 import android.database.Cursor;
 import android.media.ExifInterface;
 import android.net.Uri;
@@ -23,20 +21,19 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.logging.Logger;
 
-import eu.h2020.helios_social.core.contextualegonetwork.ContextualEgoNetwork;
+import javax.inject.Inject;
+
 import eu.h2020.helios_social.modules.contentawareprofiling.ContentAwareProfileManager;
 import eu.h2020.helios_social.modules.contentawareprofiling.Image;
 import eu.h2020.helios_social.modules.contentawareprofiling.model.ModelType;
 import eu.h2020.helios_social.modules.contentawareprofiling.profile.ContentAwareProfile;
-import eu.h2020.helios_social.modules.contentawareprofiling.profile.Interest;
-import eu.h2020.helios_social.modules.contentawareprofiling.profile.InterestProfile;
 import eu.h2020.helios_social.modules.groupcommunications.R;
-import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
+//import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ProfilingStateEvent;
 import eu.h2020.helios_social.modules.socialgraphmining.diffusion.PPRMiner;
-import mklab.JGNN.core.tensor.DenseTensor;
 
 import static java.util.logging.Logger.getLogger;
 
@@ -56,9 +53,9 @@ public class ProfilingWorker extends Worker {
     private ContentAwareProfileManager profileManager;
     private Class<? extends ContentAwareProfile> profileClass;
     private PPRMiner pprMiner;
-
+    //private EventBus eventBus;
     public ProfilingWorker(@NonNull Context context, @NonNull WorkerParameters workerParams,
-                           ContentAwareProfileManager profileManager) {
+                           ContentAwareProfileManager profileManager/*, EventBus eventBus*/) {
         super(context, workerParams);
         try {
             this.modelType = ModelType.valueOf(workerParams.getInputData().getString(MODEL));
@@ -67,6 +64,7 @@ public class ProfilingWorker extends Worker {
         }
         this.profileClass = ProfilingUtils.getProfileClass(modelType);
         this.profileManager = profileManager;
+//        this.eventBus = eventBus;
     }
 
     @NonNull
@@ -81,6 +79,7 @@ public class ProfilingWorker extends Worker {
         if (images.size() == 0) return Result.success();
 
         int progress = 0;
+        //eventBus.broadcast(new ProfilingStateEvent("Analysing"));
         setForegroundAsync(createForegroundInfo(0, "Analyzing your collection of images"));
         for (int i = 0; i <= it; i++) {
             int endIndex = i == it ? images.size() : (i + 1) * 500;
@@ -115,6 +114,7 @@ public class ProfilingWorker extends Worker {
             nbuilder.setOngoing(true);
         } else {
             nbuilder.setContentText("completed").setOngoing(false);
+            //eventBus.broadcast(new ProfilingStateEvent("Completed"));
         }
 
         Notification notification = nbuilder.build();
@@ -143,6 +143,7 @@ public class ProfilingWorker extends Worker {
      * @return the collection of images from the device
      */
     private ArrayList<Image> getImages() {
+        //eventBus.broadcast(new ProfilingStateEvent("Collecting info"));
         setForegroundAsync(createForegroundInfo(0, "Collecting info for your collection of " +
                 "images"));
         ArrayList<Image> images = new ArrayList();

@@ -15,4 +15,5 @@ public interface ContextConstants {
 
 	String CONTEXT_START_TIME = "start_time";
 	String CONTEXT_END_TIME = "end_time";
+	String CONTEXT_REPEAT = "repeat";
 }

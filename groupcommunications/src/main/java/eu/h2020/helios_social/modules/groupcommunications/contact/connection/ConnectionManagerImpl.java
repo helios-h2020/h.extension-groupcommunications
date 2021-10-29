@@ -55,11 +55,13 @@ public class ConnectionManagerImpl implements ConnectionManager {
 
     @Override
     public void sendConnectionRequest(PendingContact pendingContact) throws DbException {
+        LOG.info("trying to add pending contact");
         contactManager.addPendingContact(pendingContact);
+        LOG.info("pending contact added");
         ConnectionInfo connectionInfo =
                 new ConnectionInfo(identityManager.getIdentity().getAlias(),
                                    profileManager.getProfile("All").getProfilePic(),
-                                   pendingContact.getTimestamp())
+                                   pendingContact.getTimestamp(), identityManager.getPublicKey().getEncoded())
                         .setMessage(pendingContact.getMessage());
         sendMessage(CONNECTIONS_RECEIVER_ID, pendingContact.getId(), connectionInfo);
     }
@@ -73,11 +75,13 @@ public class ConnectionManagerImpl implements ConnectionManager {
                         new ConnectionInfo(
                                 identityManager.getIdentity().getAlias(),
                                 profileManager.getProfile("All").getProfilePic(),
-                                pendingContact.getTimestamp());
+                                pendingContact.getTimestamp(),
+                                identityManager.getPublicKey().getEncoded());
                 Group group = new Group(UUID.randomUUID().toString(), "All",
                                         GroupType.PrivateConversation);
                 contactManager.addContact(new Contact(pendingContact.getId(),
-                                                      pendingContact.getAlias(), pendingContact.getProfilePicture()));
+                        pendingContact.getAlias(), pendingContact.getProfilePicture(),
+                        pendingContact.getPublicKey()));
                 conversationManager
                         .addContactGroup(pendingContact.getId(), group);
                 contactManager.deletePendingContact(pendingContact.getId());

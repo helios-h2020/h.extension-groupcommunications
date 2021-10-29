@@ -3,32 +3,39 @@ package eu.h2020.helios_social.modules.groupcommunications.privateconversation;
 import com.google.gson.Gson;
 
 import org.jetbrains.annotations.NotNull;
+import org.spongycastle.crypto.CryptoException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
+import javax.crypto.SecretKey;
 import javax.inject.Inject;
 
 import eu.h2020.helios_social.core.contextualegonetwork.ContextualEgoNetwork;
 import eu.h2020.helios_social.core.contextualegonetwork.Interaction;
-import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosMessagingReceiver;
-import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosNetworkAddress;
+import eu.h2020.helios_social.core.messaging.HeliosMessagingReceiver;
+import eu.h2020.helios_social.core.messaging.HeliosNetworkAddress;
 import eu.h2020.helios_social.modules.groupcommunications.api.attachment.AttachmentManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.Contact;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.FormatException;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Attachment;
+import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageAndKey;
+import eu.h2020.helios_social.modules.groupcommunications.db.crypto.security.HeliosCryptoManager;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfList;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.Encoder;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchGroupException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.IdentityManager;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ConnectionRemovedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ConnectionRemovedFromContextEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
@@ -46,7 +53,7 @@ import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.Messa
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageSentEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PrivateMessageReceivedEvent;
 import eu.h2020.helios_social.modules.socialgraphmining.SocialGraphMiner;
-import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
+import eu.h2020.helios_social.modules.socialgraphmining.combination.WeightedMiner ;
 
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.PRIVATE_MESSAGE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.ATTACHMENTS;
@@ -59,18 +66,20 @@ public class PrivateMessageReceiver
 
     private final DatabaseComponent db;
     private final ContextualEgoNetwork egoNetwork;
-    private final SwitchableMiner switchableMiner;
+    private final WeightedMiner  switchableMiner;
     private final MessageTracker messageTracker;
     private final EventBus eventBus;
     private final Encoder encoder;
     private final AttachmentManager attachmentManager;
-
+    private final IdentityManager identityManager;
+    private  HeliosCryptoManager heliosCryptoManager;
     @Inject
     public PrivateMessageReceiver(DatabaseComponent db,
-                                  ContextualEgoNetwork egoNetwork, SwitchableMiner switchableMiner,
+                                  ContextualEgoNetwork egoNetwork, WeightedMiner  switchableMiner,
                                   MessageTracker messageTracker, Encoder encoder,
                                   AttachmentManager attachmentManager,
-                                  EventBus eventBus) {
+                                  EventBus eventBus,
+                                  IdentityManager identityManager) {
 
         this.db = db;
         this.egoNetwork = egoNetwork;
@@ -79,6 +88,7 @@ public class PrivateMessageReceiver
         this.encoder = encoder;
         this.attachmentManager = attachmentManager;
         this.eventBus = eventBus;
+        this.identityManager = identityManager;
     }
 
     @Override
@@ -105,7 +115,27 @@ public class PrivateMessageReceiver
             @NotNull HeliosNetworkAddress heliosNetworkAddress,
             @NotNull String protocolId, @NotNull byte[] data) {
         if (!protocolId.equals(PRIVATE_MESSAGE_PROTOCOL)) return;
-        String stringMessage = new String(data, StandardCharsets.UTF_8);
+        //get your private key
+        heliosCryptoManager = HeliosCryptoManager.getInstance();
+        PrivateKey privateKey = null;
+        try {
+            privateKey = identityManager.getPrivateKey();
+        } catch (DbException e) {
+            e.printStackTrace();
+        }
+        byte[] decryptedMessageBytes = new byte[0];
+        String stringMessage;
+        try {
+            decryptedMessageBytes = heliosCryptoManager.decryptMessage(data,privateKey);
+            stringMessage = new String(decryptedMessageBytes, StandardCharsets.UTF_8);
+        } catch (CryptoException e) {
+            e.printStackTrace();
+            stringMessage = new String(data, StandardCharsets.UTF_8);
+        }
+
+
+//      String stringMessage = new String(data, StandardCharsets.UTF_8);
+        //LOG.info("MessagePartString" + stringMessage);
         Message privateMessage =
                 new Gson().fromJson(stringMessage, Message.class);
         ContactId contactId =
@@ -232,6 +262,7 @@ public class PrivateMessageReceiver
                 privateMessage.getPreferences(),
                 SocialGraphMiner.InteractionType.RECEIVE
         );
+
         String ack_preferences = switchableMiner.getModelParameters(interaction);
         LOG.info("send ack_preferences: " + ack_preferences);
         Message ack = new Message(ack_preferences, context.getName() + "%" + context.getId() + "%" + privateMessage.getId());

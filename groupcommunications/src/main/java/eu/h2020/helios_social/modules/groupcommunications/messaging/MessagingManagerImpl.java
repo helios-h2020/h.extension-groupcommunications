@@ -38,7 +38,7 @@ import eu.h2020.helios_social.modules.groupcommunications.api.messaging.GroupMes
 import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerInfo;
 import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroup;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageReceivedFromUnknownGroupEvent;
-import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
+import eu.h2020.helios_social.modules.socialgraphmining.combination.WeightedMiner;
 
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.PRIVATE_MESSAGE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.ATTACHMENTS;
@@ -57,7 +57,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
     private final GroupManager groupManager;
     private final MessageTracker messageTracker;
     private final ContextualEgoNetwork egoNetwork;
-    private final SwitchableMiner switchableMiner;
+    private final WeightedMiner switchableMiner;
     private final CommunicationManager communicationManager;
     private final Encoder encoder;
     private final AttachmentManager attachmentManager;
@@ -67,7 +67,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
                                 GroupManager groupManager,
                                 ContextualEgoNetwork egoNetwork, MessageTracker messageTracker,
                                 CommunicationManager communicationManager, Encoder encoder,
-                                SwitchableMiner switchableMiner,
+                                WeightedMiner switchableMiner,
                                 AttachmentManager attachmentManager) {
         this.db = db;
         this.ioExecutor = ioExecutor;
