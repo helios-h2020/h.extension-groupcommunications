@@ -6,8 +6,8 @@ allprojects {
         maven {
             url "https://builder.helios-social.eu/repository/helios-repository/"
             credentials {
-                username = "helios"
-                password = "h3l10sN3xu\$"
+                username = heliosUser
+                password = heliosPassword
             }
         }
         maven { url "https://jitpack.io" }
