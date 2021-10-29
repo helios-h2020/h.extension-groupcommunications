@@ -10,6 +10,8 @@ import eu.h2020.helios_social.modules.groupcommunications.api.context.DBContext;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.FormatException;
 import eu.h2020.helios_social.modules.groupcommunications.context.proxy.GeneralContextProxy;
 import eu.h2020.helios_social.modules.groupcommunications.context.proxy.LocationContextProxy;
+import eu.h2020.helios_social.modules.groupcommunications.context.proxy.SpatioTemporalContext;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
 
 public interface ContextManager<T> {
 
@@ -40,13 +42,27 @@ public interface ContextManager<T> {
     void addContext(T txn, LocationContextProxy context)
             throws DbException;
 
+    void addContext(T txn, SpatioTemporalContext context)
+            throws DbException;
+
     void removeContext(String contextId) throws DbException;
 
     Collection<DBContext> getContexts() throws DbException;
 
+
     Context getContext(String contextId) throws DbException, FormatException;
 
+    Context getContext(String contextId,boolean hidePrivateName) throws DbException, FormatException;
+
+
     Integer getContextColor(String contextId) throws DbException;
+
+    String getContextPrivateName(String contextId) throws DbException;
+
+    String getContextName(String contextId) throws DbException;
+
+    void setContextName(String contextId, String Name) throws DbException;
+
 
     boolean isMember(T txn, String contextId, ContactId cid)
             throws DbException, FormatException;
@@ -99,6 +115,15 @@ public interface ContextManager<T> {
     int pendingIncomingContextInvitations() throws DbException;
 
     int pendingOutgoingContextInvitations() throws DbException;
+
+    void setContextPrivateName(String contextId, String name) throws DbException;
+
+
+    int countUnreadMessagesInContext(String contextId) throws DbException;
+
+    Collection<LocationContextProxy> getLocationContexts() throws DbException, FormatException;
+
+    Collection<SpatioTemporalContext> getSpatiotemporalContexts() throws DbException, FormatException;
 
     class ContextCount {
 

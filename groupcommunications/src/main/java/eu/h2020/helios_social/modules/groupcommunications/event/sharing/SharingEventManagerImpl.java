@@ -29,33 +29,25 @@ public class SharingEventManagerImpl implements SharingEventManager {
     @Override
     public void shareEvent(ContactId contactId, String groupId, HeliosEvent heliosEvent) {
         Message eventMessage = new Message(UUID.randomUUID().toString(), groupId,
-                clock.currentTimeMillis(),
-                heliosEvent.toJson(), Message.Type.EVENT);
-        try {
-            communicationManager.sendDirectMessage(PRIVATE_MESSAGE_PROTOCOL, contactId,
-                    eventMessage);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (TimeoutException e) {
-            e.printStackTrace();
-        }
+                                           clock.currentTimeMillis(),
+                                           heliosEvent.toJson(), Message.Type.EVENT);
+        communicationManager.sendDirectMessage(PRIVATE_MESSAGE_PROTOCOL, contactId,
+                                               eventMessage);
     }
 
     @Override
     public void shareEvent(Group group, HeliosEvent heliosEvent) {
         Message eventMessage = new Message(UUID.randomUUID().toString(), group.getId(),
-                clock.currentTimeMillis(),
-                heliosEvent.toJson(), Message.Type.EVENT);
+                                           clock.currentTimeMillis(),
+                                           heliosEvent.toJson(), Message.Type.EVENT);
         if (group instanceof PrivateGroup) {
             PrivateGroup privateGroup = (PrivateGroup) group;
             communicationManager.sendGroupMessage(privateGroup.getId(),
-                    privateGroup.getPassword(), eventMessage);
+                                                  privateGroup.getPassword(), eventMessage);
         } else {
             Forum forum = (Forum) group;
             communicationManager.sendGroupMessage(forum.getId(),
-                    forum.getPassword(), eventMessage);
+                                                  forum.getPassword(), eventMessage);
         }
     }
 }

@@ -153,8 +153,8 @@ public class ForumMembershipManagerImpl implements ForumMembershipManager {
                     );
             long timestamp = clock.currentTimeMillis();
             db.updateForumMemberRole(txn, forumMember.getGroupId(),
-                    forumMember.getPeerId().getFakeId(), updatedRole,
-                    timestamp);
+                                     forumMember.getPeerId().getFakeId(), updatedRole,
+                                     timestamp);
 
             if ((updatedRole == ForumMemberRole.MODERATOR &&
                     forumMember.getRole() != ForumMemberRole.ADMINISTRATOR) ||
@@ -175,7 +175,7 @@ public class ForumMembershipManagerImpl implements ForumMembershipManager {
                 notify(forumMember.getPeerId(), membershipInfo);
             } else if (forumMember.getRole() == ForumMemberRole.MODERATOR) {
                 forumManager.removeModerator(txn, forum.getId(),
-                        forumMember.getPeerId().getId());
+                                             forumMember.getPeerId().getId());
                 Collection<ForumMember> forumMembers =
                         forumManager.getForumMembers(txn, forum.getId());
                 //notify members to remove moderator
@@ -204,18 +204,10 @@ public class ForumMembershipManagerImpl implements ForumMembershipManager {
 
     private void notify(PeerId peerId, MembershipInfo membershipInfo) {
         ioExecutor.execute(() -> {
-            try {
-                communicationManager.sendDirectMessage(
-                        FORUM_MEMBERSHIP_PROTOCOL,
-                        peerId,
-                        membershipInfo);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            } catch (TimeoutException e) {
-                e.printStackTrace();
-            }
+            communicationManager.sendDirectMessage(
+                    FORUM_MEMBERSHIP_PROTOCOL,
+                    peerId,
+                    membershipInfo);
         });
     }
 }

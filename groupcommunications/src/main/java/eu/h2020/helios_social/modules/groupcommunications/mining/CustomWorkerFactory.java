@@ -20,6 +20,8 @@ import eu.h2020.helios_social.modules.contentawareprofiling.data.DMLModelData;
 import eu.h2020.helios_social.modules.contentawareprofiling.miners.CoarseInterestProfileMiner;
 import eu.h2020.helios_social.modules.contentawareprofiling.miners.DMLProfileMiner;
 import eu.h2020.helios_social.modules.contentawareprofiling.miners.FineInterestProfileMiner;
+import eu.h2020.helios_social.modules.socialgraphmining.SocialGraphMiner;
+//import eu.h2020.helios_social.modules.socialgraphmining.SwitchableMiner;
 
 import static java.util.logging.Logger.getLogger;
 
@@ -31,13 +33,10 @@ public class CustomWorkerFactory extends WorkerFactory {
     private static String TAG = CustomWorkerFactory.class.getName();
     private final static Logger LOG = getLogger(TAG);
 
-    private ContextualEgoNetwork egoNetwork;
     private ContentAwareProfileManager profileManager;
 
     @Inject
-    public CustomWorkerFactory(ContextualEgoNetwork egoNetwork,
-                               ContentAwareProfileManager profileManager) {
-        this.egoNetwork = egoNetwork;
+    public CustomWorkerFactory(ContentAwareProfileManager profileManager) {
         this.profileManager = profileManager;
     }
 
@@ -56,15 +55,14 @@ public class CustomWorkerFactory extends WorkerFactory {
             if (workerClassName.equals(ProfilingWorker.class.getName())) {
                 Constructor<? extends Worker> constructor = Class.forName(workerClassName)
                         .asSubclass(Worker.class).getDeclaredConstructor(Context.class,
-                                WorkerParameters.class, ContextualEgoNetwork.class,
-                                ContentAwareProfileManager.class);
-                worker = constructor.newInstance(appContext, workerParameters, egoNetwork,
-                        profileManager);
+                                                                         WorkerParameters.class,
+                                                                         ContentAwareProfileManager.class);
+                worker = constructor.newInstance(appContext, workerParameters, profileManager);
             } else {
                 //Default construction of other workers
                 Constructor<? extends Worker> constructor = Class.forName(workerClassName)
                         .asSubclass(Worker.class).getDeclaredConstructor(Context.class,
-                                WorkerParameters.class);
+                                                                         WorkerParameters.class);
                 worker = constructor.newInstance(appContext, workerParameters);
             }
             return worker;

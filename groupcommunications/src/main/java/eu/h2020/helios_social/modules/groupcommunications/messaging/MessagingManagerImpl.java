@@ -1,12 +1,7 @@
 package eu.h2020.helios_social.modules.groupcommunications.messaging;
 
-import android.app.Application;
-import android.net.Uri;
-
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 
 import javax.inject.Inject;
@@ -15,6 +10,7 @@ import eu.h2020.helios_social.core.contextualegonetwork.ContextualEgoNetwork;
 import eu.h2020.helios_social.core.contextualegonetwork.Interaction;
 import eu.h2020.helios_social.modules.groupcommunications.api.attachment.AttachmentManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Attachment;
+import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerId;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfList;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.Encoder;
@@ -39,13 +35,10 @@ import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageS
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageTracker;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessagingManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.GroupMessage;
-import eu.h2020.helios_social.modules.groupcommunications.api.mining.MiningManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerInfo;
 import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.PrivateGroup;
-import io.tus.android.client.TusAndroidUpload;
-import io.tus.java.client.TusClient;
-import io.tus.java.client.TusUpload;
-import io.tus.java.client.TusUploader;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageReceivedFromUnknownGroupEvent;
+import eu.h2020.helios_social.modules.socialgraphmining.combination.WeightedMiner;
 
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.PRIVATE_MESSAGE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.ATTACHMENTS;
@@ -59,32 +52,29 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
     private static final Logger LOG =
             getLogger(MessagingManagerImpl.class.getName());
 
-    private final Application app;
     private final DatabaseComponent db;
     private final Executor ioExecutor;
     private final GroupManager groupManager;
     private final MessageTracker messageTracker;
     private final ContextualEgoNetwork egoNetwork;
-    private final MiningManager miningManager;
+    private final WeightedMiner switchableMiner;
     private final CommunicationManager communicationManager;
     private final Encoder encoder;
     private final AttachmentManager attachmentManager;
 
     @Inject
-    public MessagingManagerImpl(Application app, DatabaseComponent db, @IoExecutor Executor ioExecutor,
+    public MessagingManagerImpl(DatabaseComponent db, @IoExecutor Executor ioExecutor,
                                 GroupManager groupManager,
                                 ContextualEgoNetwork egoNetwork, MessageTracker messageTracker,
                                 CommunicationManager communicationManager, Encoder encoder,
-                                TusClient tusClient,
-                                MiningManager miningManager,
+                                WeightedMiner switchableMiner,
                                 AttachmentManager attachmentManager) {
-        this.app = app;
         this.db = db;
         this.ioExecutor = ioExecutor;
         this.groupManager = groupManager;
         this.messageTracker = messageTracker;
         this.egoNetwork = egoNetwork;
-        this.miningManager = miningManager;
+        this.switchableMiner = switchableMiner;
         this.communicationManager = communicationManager;
         this.encoder = encoder;
         this.attachmentManager = attachmentManager;
@@ -107,11 +97,12 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
                 privateMessage.getMessageBody() != null);
         try {
             db.addMessage(txn, privateMessage, MessageState.PENDING, contextId,
-                    false);
+                          false);
             if (privateMessage.getMessageType().equals(Message.Type.IMAGES) ||
-                    privateMessage.getMessageType().equals(Message.Type.ATTACHMENT)) {
+                    privateMessage.getMessageType().equals(Message.Type.FILE_ATTACHMENT)) {
                 messageHeader.setAttachments(privateMessage.getAttachments());
                 try {
+                    attachmentManager.storeOutgoingAttachmentsToExternalStorage(privateMessage.getAttachments());
                     addAttachmentMetadata(txn, privateMessage.getId(), privateMessage.getAttachments());
                 } catch (FormatException e) {
                     e.printStackTrace();
@@ -119,6 +110,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
             }
 
             messageTracker.trackOutgoingMessage(txn, privateMessage);
+
             Interaction interaction = egoNetwork
                     .getCurrentContext()
                     .getOrAddEdge(
@@ -126,12 +118,11 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
                             egoNetwork.getOrCreateNode(contactId.getId()))
                     .addDetectedInteraction(null);
 
-            String preferences =
-                    miningManager.getSocialGraphMiner().getModelParameters(interaction);
+            String preferences = switchableMiner.getModelParameters(interaction);
             privateMessage.setPreferences(preferences);
 
             sendMessage(PRIVATE_MESSAGE_PROTOCOL, contactId,
-                    privateMessage);
+                        privateMessage);
 
             db.commitTransaction(txn);
         } finally {
@@ -160,14 +151,15 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
             if (group instanceof PrivateGroup) {
                 PrivateGroup privateGroup = (PrivateGroup) group;
                 db.addMessage(txn, groupMessage, MessageState.DELIVERED,
-                        privateGroup.getContextId(),
-                        false);
+                              privateGroup.getContextId(),
+                              false);
                 addMessageMetadata(txn, groupMessage.getId(),
-                        groupMessage.getPeerInfo());
+                                   groupMessage.getPeerInfo());
                 if (groupMessage.getMessageType().equals(Message.Type.IMAGES) ||
-                        groupMessage.getMessageType().equals(Message.Type.ATTACHMENT)) {
+                        groupMessage.getMessageType().equals(Message.Type.FILE_ATTACHMENT)) {
                     messageHeader.setAttachments(groupMessage.getAttachments());
                     try {
+                        attachmentManager.storeOutgoingAttachmentsToExternalStorage(groupMessage.getAttachments());
                         addAttachmentMetadata(txn, groupMessage.getId(), groupMessage.getAttachments());
                     } catch (FormatException e) {
                         e.printStackTrace();
@@ -180,14 +172,15 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
 
                 if (role.getInt() <= 2) {
                     db.addMessage(txn, groupMessage, MessageState.DELIVERED,
-                            forum.getContextId(),
-                            false);
+                                  forum.getContextId(),
+                                  false);
                     addMessageMetadata(txn, groupMessage.getId(),
-                            groupMessage.getPeerInfo());
+                                       groupMessage.getPeerInfo());
                     if (groupMessage.getMessageType().equals(Message.Type.IMAGES) ||
-                            groupMessage.getMessageType().equals(Message.Type.ATTACHMENT)) {
+                            groupMessage.getMessageType().equals(Message.Type.FILE_ATTACHMENT)) {
                         messageHeader.setAttachments(groupMessage.getAttachments());
                         try {
+                            attachmentManager.storeOutgoingAttachmentsToExternalStorage(groupMessage.getAttachments());
                             addAttachmentMetadata(txn, groupMessage.getId(), groupMessage.getAttachments());
                         } catch (FormatException e) {
                             e.printStackTrace();
@@ -223,7 +216,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
         BdfDictionary meta = new BdfDictionary();
         BdfList attachmentList = new BdfList();
         for (Attachment a : attachments) {
-            attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType()));
+            attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType(), a.getAttachmentName()));
         }
         meta.put(ATTACHMENTS, attachmentList);
         db.mergeMessageMetadata(txn, messageId, encoder.encodeMetadata(meta));
@@ -233,13 +226,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
                                        List<Attachment> attachments) throws DbException {
         Transaction txn = db.startTransaction(false);
         try {
-            BdfDictionary meta = new BdfDictionary();
-            BdfList attachmentList = new BdfList();
-            for (Attachment a : attachments) {
-                attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType()));
-            }
-            meta.put(ATTACHMENTS, attachmentList);
-            db.mergeMessageMetadata(txn, messageId, encoder.encodeMetadata(meta));
+            addAttachmentMetadata(txn, messageId, attachments);
             db.commitTransaction(txn);
         } catch (FormatException e) {
             e.printStackTrace();
@@ -253,26 +240,26 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
         if (e instanceof AckMessageEvent) {
             LOG.info("sending ack...");
             ioExecutor.execute(() -> {
-                try {
-                    communicationManager.sendDirectMessage(
-                            PRIVATE_MESSAGE_PROTOCOL,
-                            ((AckMessageEvent) e).getContactId(),
-                            ((AckMessageEvent) e).getAck()
-                    );
-                } catch (InterruptedException ex) {
-                    ex.printStackTrace();
-                } catch (ExecutionException ex) {
-                    ex.printStackTrace();
-                } catch (TimeoutException ex) {
-                    ex.printStackTrace();
-                }
+                communicationManager.sendDirectMessage(
+                        PRIVATE_MESSAGE_PROTOCOL,
+                        ((AckMessageEvent) e).getContactId(),
+                        ((AckMessageEvent) e).getAck()
+                );
+            });
+        } else if (e instanceof MessageReceivedFromUnknownGroupEvent) {
+            ioExecutor.execute(() -> {
+                communicationManager.sendDirectMessage(
+                        PRIVATE_MESSAGE_PROTOCOL,
+                        new PeerId(((MessageReceivedFromUnknownGroupEvent) e).getPeerId()),
+                        new Message(((MessageReceivedFromUnknownGroupEvent) e).getGroupId())
+                );
             });
         }
     }
 
     private void sendMessage(Group group, Message groupMessage) {
         ioExecutor.execute(() -> {
-            if (groupMessage.getMessageType().equals(Message.Type.IMAGES) || groupMessage.getMessageType().equals(Message.Type.ATTACHMENT)) {
+            if (groupMessage.getMessageType().equals(Message.Type.IMAGES) || groupMessage.getMessageType().equals(Message.Type.FILE_ATTACHMENT)) {
                 attachmentManager.uploadAttachments(groupMessage.getAttachments());
                 try {
                     addAttachmentMetadata(groupMessage.getId(), groupMessage.getAttachments());
@@ -302,7 +289,7 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
 
     private void sendMessage(String protocol, ContactId contactId, Message message) {
         ioExecutor.execute(() -> {
-            if (message.getMessageType().equals(Message.Type.IMAGES) || message.getMessageType().equals(Message.Type.ATTACHMENT)) {
+            if (message.getMessageType().equals(Message.Type.IMAGES) || message.getMessageType().equals(Message.Type.FILE_ATTACHMENT)) {
                 attachmentManager.uploadAttachments(message.getAttachments());
                 LOG.info("Attachments: " + message.getAttachments());
                 try {
@@ -314,20 +301,15 @@ public class MessagingManagerImpl implements MessagingManager, EventListener {
                     attachment.setUri(null);
                 }
                 LOG.info("Attachments: " + message.getAttachments());
+
             }
-            try {
-                communicationManager.sendDirectMessage(
-                        protocol,
-                        contactId,
-                        message
-                );
-            } catch (InterruptedException ex) {
-                ex.printStackTrace();
-            } catch (ExecutionException ex) {
-                ex.printStackTrace();
-            } catch (TimeoutException ex) {
-                ex.printStackTrace();
-            }
+
+            communicationManager.sendDirectMessage(
+                    protocol,
+                    contactId,
+                    message
+            );
+
         });
     }
 }

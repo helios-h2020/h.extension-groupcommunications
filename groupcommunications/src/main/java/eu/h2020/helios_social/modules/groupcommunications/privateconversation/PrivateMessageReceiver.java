@@ -3,30 +3,41 @@ package eu.h2020.helios_social.modules.groupcommunications.privateconversation;
 import com.google.gson.Gson;
 
 import org.jetbrains.annotations.NotNull;
+import org.spongycastle.crypto.CryptoException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
+import javax.crypto.SecretKey;
 import javax.inject.Inject;
 
 import eu.h2020.helios_social.core.contextualegonetwork.ContextualEgoNetwork;
 import eu.h2020.helios_social.core.contextualegonetwork.Interaction;
-import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosMessagingReceiver;
-import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosNetworkAddress;
+import eu.h2020.helios_social.core.messaging.HeliosMessagingReceiver;
+import eu.h2020.helios_social.core.messaging.HeliosNetworkAddress;
 import eu.h2020.helios_social.modules.groupcommunications.api.attachment.AttachmentManager;
+import eu.h2020.helios_social.modules.groupcommunications.api.contact.Contact;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.FormatException;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.Attachment;
+import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageAndKey;
+import eu.h2020.helios_social.modules.groupcommunications.db.crypto.security.HeliosCryptoManager;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfDictionary;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.BdfList;
 import eu.h2020.helios_social.modules.groupcommunications_utils.data.Encoder;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.DatabaseComponent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.db.NoSuchGroupException;
 import eu.h2020.helios_social.modules.groupcommunications_utils.db.Transaction;
+import eu.h2020.helios_social.modules.groupcommunications_utils.identity.IdentityManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ConnectionRemovedEvent;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ConnectionRemovedFromContextEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.AckMessageEvent;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactId;
@@ -38,9 +49,11 @@ import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageH
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageState;
 import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageTracker;
 import eu.h2020.helios_social.modules.groupcommunications.api.mining.MiningManager;
+import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageReceivedFromUnknownGroupEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.MessageSentEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.PrivateMessageReceivedEvent;
 import eu.h2020.helios_social.modules.socialgraphmining.SocialGraphMiner;
+import eu.h2020.helios_social.modules.socialgraphmining.combination.WeightedMiner ;
 
 import static eu.h2020.helios_social.modules.groupcommunications.api.CommunicationConstants.PRIVATE_MESSAGE_PROTOCOL;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.ATTACHMENTS;
@@ -53,26 +66,29 @@ public class PrivateMessageReceiver
 
     private final DatabaseComponent db;
     private final ContextualEgoNetwork egoNetwork;
-    private final MiningManager miningManager;
+    private final WeightedMiner  switchableMiner;
     private final MessageTracker messageTracker;
     private final EventBus eventBus;
     private final Encoder encoder;
     private final AttachmentManager attachmentManager;
-
+    private final IdentityManager identityManager;
+    private  HeliosCryptoManager heliosCryptoManager;
     @Inject
     public PrivateMessageReceiver(DatabaseComponent db,
-                                  ContextualEgoNetwork egoNetwork, MiningManager miningManager,
+                                  ContextualEgoNetwork egoNetwork, WeightedMiner  switchableMiner,
                                   MessageTracker messageTracker, Encoder encoder,
                                   AttachmentManager attachmentManager,
-                                  EventBus eventBus) {
+                                  EventBus eventBus,
+                                  IdentityManager identityManager) {
 
         this.db = db;
         this.egoNetwork = egoNetwork;
-        this.miningManager = miningManager;
+        this.switchableMiner = switchableMiner;
         this.messageTracker = messageTracker;
         this.encoder = encoder;
         this.attachmentManager = attachmentManager;
         this.eventBus = eventBus;
+        this.identityManager = identityManager;
     }
 
     @Override
@@ -99,18 +115,46 @@ public class PrivateMessageReceiver
             @NotNull HeliosNetworkAddress heliosNetworkAddress,
             @NotNull String protocolId, @NotNull byte[] data) {
         if (!protocolId.equals(PRIVATE_MESSAGE_PROTOCOL)) return;
-        String stringMessage = new String(data, StandardCharsets.UTF_8);
+        //get your private key
+        heliosCryptoManager = HeliosCryptoManager.getInstance();
+        PrivateKey privateKey = null;
+        try {
+            privateKey = identityManager.getPrivateKey();
+        } catch (DbException e) {
+            e.printStackTrace();
+        }
+        byte[] decryptedMessageBytes = new byte[0];
+        String stringMessage;
+        try {
+            decryptedMessageBytes = heliosCryptoManager.decryptMessage(data,privateKey);
+            stringMessage = new String(decryptedMessageBytes, StandardCharsets.UTF_8);
+        } catch (CryptoException e) {
+            e.printStackTrace();
+            stringMessage = new String(data, StandardCharsets.UTF_8);
+        }
+
+
+//      String stringMessage = new String(data, StandardCharsets.UTF_8);
+        //LOG.info("MessagePartString" + stringMessage);
         Message privateMessage =
                 new Gson().fromJson(stringMessage, Message.class);
+        ContactId contactId =
+                new ContactId(heliosNetworkAddress.getNetworkId());
         try {
-            ContactId contactId =
-                    new ContactId(heliosNetworkAddress.getNetworkId());
             if (privateMessage.getMessageType().equals(Message.Type.ACK)) {
                 LOG.info("Ack Received...");
                 onReceiveAckMessage(contactId, privateMessage);
+            } else if (privateMessage.getMessageType().equals(Message.Type.ACK_INVALID_GROUP)) {
+                LOG.info("Ack of Invalid Group Received...");
+                onReceiveAckInvalidGroup(contactId, privateMessage);
             } else {
                 onReceivePrivateMessage(contactId, privateMessage);
             }
+        } catch (NoSuchGroupException ex) {
+            eventBus.broadcast(new MessageReceivedFromUnknownGroupEvent(
+                    contactId.getId(),
+                    privateMessage.getGroupId())
+            );
         } catch (DbException e) {
             e.printStackTrace();
         }
@@ -137,6 +181,7 @@ public class PrivateMessageReceiver
                         false,
                         privateMessage.getMessageType(),
                         privateMessage.getMessageBody() != null);
+
                 messageTracker.trackIncomingMessage(txn, privateMessage);
 
                 LOG.info("received ack preferences: " + privateMessage.getPreferences());
@@ -144,7 +189,7 @@ public class PrivateMessageReceiver
                     ackMessage(txn, contactId, privateMessage);
                 db.commitTransaction(txn);
 
-                if (messageHeader.getMessageType() == Message.Type.IMAGES) {
+                if (messageHeader.getMessageType() == Message.Type.IMAGES || messageHeader.getMessageType() == Message.Type.FILE_ATTACHMENT) {
                     attachmentManager.downloadAttachments(privateMessage.getId(), privateMessage.getAttachments());
                     addAttachmentMetadata(privateMessage.getId(), privateMessage.getAttachments());
                 } else {
@@ -167,18 +212,44 @@ public class PrivateMessageReceiver
                 .getInteractions();
         Interaction interaction = interactions.get(interactions.size() - 1);
         LOG.info("ack preferences: " + ack.getPreferences());
-        miningManager.getSocialGraphMiner().newInteraction(interaction, ack.getPreferences(),
-                                                           SocialGraphMiner.InteractionType.RECEIVE_REPLY);
+        switchableMiner.newInteraction(interaction, ack.getPreferences(),
+                                       SocialGraphMiner.InteractionType.RECEIVE_REPLY);
         messageTracker.setDeliveredFlag(fields[2]);
         eventBus.broadcast(new MessageSentEvent(fields[2]));
 
+    }
+
+    private void onReceiveAckInvalidGroup(ContactId contactId, Message ack) throws DbException {
+        Transaction txn = db.startTransaction(false);
+        try {
+            String contextId = db.getGroupContext(txn, ack.getGroupId());
+            if (contextId.equals("All")) {
+                Contact removedConnection = db.getContact(txn, contactId);
+                LOG.info(removedConnection.getAlias());
+                db.removeContact(txn, contactId);
+                egoNetwork.removeNodeIfExists(removedConnection.getId().getId());
+                eventBus.broadcast(new ConnectionRemovedEvent(removedConnection));
+            } else {
+                Contact connection = db.getContact(txn, contactId);
+                DBContext context = db.getContext(txn, contextId);
+                db.removeContact(txn, contactId.getId(), contextId);
+                egoNetwork.getOrCreateContext(context.getName() + "%" + context.getId())
+                        .removeNodeIfExists(egoNetwork.getOrCreateNode(connection.getId().getId(), null));
+                eventBus.broadcast(new ConnectionRemovedFromContextEvent(connection, context.getName(), contextId));
+            }
+            egoNetwork.save();
+            db.commitTransaction(txn);
+        } catch (DbException ex) {
+            ex.printStackTrace();
+        } finally {
+            db.endTransaction(txn);
+        }
     }
 
     private void ackMessage(Transaction txn, ContactId contactId, Message privateMessage) throws DbException {
         Group group = db.getGroup(txn, privateMessage.getGroupId());
         DBContext context = db.getContext(txn, group.getContextId());
 
-        LOG.info("IS contextual ego network null? " + egoNetwork);
         Interaction interaction = egoNetwork
                 .getOrCreateContext(context.getName() + "%" + context.getId())
                 .getOrAddEdge(
@@ -186,14 +257,13 @@ public class PrivateMessageReceiver
                         egoNetwork.getOrCreateNode(contactId.getId(), null)
                 ).addDetectedInteraction(null);
 
-        miningManager.getSocialGraphMiner().newInteraction(
+        switchableMiner.newInteraction(
                 interaction,
                 privateMessage.getPreferences(),
                 SocialGraphMiner.InteractionType.RECEIVE
         );
-        String ack_preferences = miningManager
-                .getSocialGraphMiner()
-                .getModelParameters(interaction);
+
+        String ack_preferences = switchableMiner.getModelParameters(interaction);
         LOG.info("send ack_preferences: " + ack_preferences);
         Message ack = new Message(ack_preferences, context.getName() + "%" + context.getId() + "%" + privateMessage.getId());
         eventBus.broadcast(new AckMessageEvent(contactId, ack));
@@ -206,7 +276,7 @@ public class PrivateMessageReceiver
             BdfDictionary meta = new BdfDictionary();
             BdfList attachmentList = new BdfList();
             for (Attachment a : attachments) {
-                attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType()));
+                attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType(), a.getAttachmentName()));
             }
             meta.put(ATTACHMENTS, attachmentList);
             db.mergeMessageMetadata(txn, messageId, encoder.encodeMetadata(meta));

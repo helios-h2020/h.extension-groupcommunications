@@ -353,7 +353,7 @@ heliosPassword=password
 
 To request Nexus username and password, contact with: `jordi.hernandezv@atos.net`
 
-To include the h.extension-groupcommunications to your project you need to add the
+To include the h.extension-groupcommunications-utils to your project you need to add the
 following on the `build.gradle` file of your app/module:
 
 ```

@@ -5,11 +5,13 @@ import javax.inject.Singleton;
 
 import dagger.Module;
 import dagger.Provides;
+import eu.h2020.helios_social.modules.groupcommunications.api.forum.sharing.ForumAccessRequestFactory;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupFactory;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.GroupMessageFactory;
 import eu.h2020.helios_social.modules.groupcommunications.api.privategroup.sharing.GroupInvitationFactory;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.sharing.SharingGroupManager;
+import eu.h2020.helios_social.modules.groupcommunications.forum.ForumAccessRequestFactoryImpl;
 import eu.h2020.helios_social.modules.groupcommunications.group.sharing.GroupInvitationFactoryImpl;
 import eu.h2020.helios_social.modules.groupcommunications.group.sharing.SharingGroupManagerImpl;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
@@ -41,6 +43,12 @@ public class GroupModule {
     GroupInvitationFactory providesGroupInvitationFactoryImpl(
             GroupInvitationFactoryImpl groupInvitationFactory) {
         return groupInvitationFactory;
+    }
+
+    @Provides
+    ForumAccessRequestFactory providesForumAccessRequestFactoryImpl(
+            ForumAccessRequestFactoryImpl forumAccessRequestFactory) {
+        return forumAccessRequestFactory;
     }
 
     @Provides

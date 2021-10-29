@@ -13,8 +13,8 @@ import java.util.logging.Logger;
 
 import javax.inject.Inject;
 
-import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosMessagingReceiver;
-import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosNetworkAddress;
+import eu.h2020.helios_social.core.messaging.HeliosMessagingReceiver;
+import eu.h2020.helios_social.core.messaging.HeliosNetworkAddress;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.Group;
 import eu.h2020.helios_social.modules.groupcommunications.api.exception.DbException;
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.Contact;
@@ -26,6 +26,7 @@ import eu.h2020.helios_social.modules.groupcommunications.api.contact.connection
 import eu.h2020.helios_social.modules.groupcommunications.api.contact.ContactManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.conversation.ConversationManager;
 import eu.h2020.helios_social.modules.groupcommunications.api.group.GroupType;
+import eu.h2020.helios_social.modules.groupcommunications.db.crypto.security.RSAKeyUtils;
 
 import static eu.h2020.helios_social.modules.groupcommunications.api.contact.connection.ConnectionConstants.CONNECTIONS_RECEIVER_ID;
 import static java.util.logging.Logger.getLogger;
@@ -80,29 +81,39 @@ public class ConnectionRequestReceiver
         try {
             PendingContact pendingContact = contactManager.getPendingContact(
                     new ContactId(heliosNetworkAddress.getNetworkId()));
+            // request received
             if (pendingContact == null && connectionInfo.getAlias() != null) {
                 pendingContact = pendingContactFactory
                         .createIncomingPendingContact(
                                 heliosNetworkAddress.getNetworkId(),
                                 connectionInfo);
                 contactManager.addPendingContact(pendingContact);
-            } else if (pendingContact.getPendingContactType().equals(
+            }
+            // request accepted from the received
+            else if (pendingContact.getPendingContactType().equals(
                     PendingContactType.OUTGOING) &&
                     connectionInfo.getAlias() != null) {
                 ContactId contactId =
                         new ContactId(heliosNetworkAddress.getNetworkId());
 
                 contactManager.addContact(new Contact(contactId,
-                        connectionInfo.getAlias(), connectionInfo.getProfilePicture()));
+                        connectionInfo.getAlias(), connectionInfo.getProfilePicture(), RSAKeyUtils.getPublicKeyFromBytes(connectionInfo.getPublicKey())));
                 Group group = new Group(connectionInfo.getGroupId(),
                         connectionInfo.getContextId(),
                         GroupType.PrivateConversation);
                 conversationManager.addContactGroup(contactId, group);
                 contactManager.deletePendingContact(pendingContact.getId());
-            } else if (pendingContact.getPendingContactType().equals(
+            }
+            // request rejected from the received
+            else if (pendingContact.getPendingContactType().equals(
                     PendingContactType.OUTGOING) &&
                     connectionInfo.getAlias() == null) {
                 contactManager.deletePendingContact(pendingContact.getId());
+            }
+            // request deleted from the sender
+            else if (pendingContact.getPendingContactType().equals(
+                    PendingContactType.INCOMING) && connectionInfo.getAlias() == null){
+                    contactManager.deletePendingContact(pendingContact.getId());
             }
         } catch (DbException e) {
             e.printStackTrace();

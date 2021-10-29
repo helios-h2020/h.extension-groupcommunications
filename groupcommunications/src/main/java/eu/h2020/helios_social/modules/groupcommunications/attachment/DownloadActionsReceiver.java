@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.database.Cursor;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.inject.Inject;
@@ -54,7 +55,7 @@ public class DownloadActionsReceiver extends BroadcastReceiver {
         String messageId = pendingAttachmentsMemory.get(downloadId);
         pendingAttachmentsMemory.remove(downloadId);
         LOG.info("ATTACHMENT MANAGER : pendingAttachmentsMemory=" + pendingAttachmentsMemory);
-        if (!pendingAttachmentsMemory.containsValue(messageId)) {
+        if (messageId != null && !pendingAttachmentsMemory.containsValue(messageId)) {
             try {
                 Transaction txn = db.startTransaction(true);
                 try {
@@ -76,8 +77,10 @@ public class DownloadActionsReceiver extends BroadcastReceiver {
                     db.endTransaction(txn);
                 }
             } catch (DbException e) {
+                LOG.log(Level.SEVERE, e.getMessage(), e);
                 e.printStackTrace();
             } catch (FormatException e) {
+                LOG.log(Level.SEVERE, e.getMessage(), e);
                 e.printStackTrace();
             }
         }

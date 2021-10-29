@@ -158,7 +158,7 @@ public class ForumManagerImpl implements ForumManager<Transaction> {
                 encoder.encodeMetadata(meta));
         messageTracker.initializeGroupCount(txn, forum.getId());
 
-        if (forum.getGroupType().equals(GroupType.PublicForum)) {
+        if (forum.getGroupType().equals(GroupType.PublicForum) || forum.getGroupType().equals(GroupType.ProtectedForum)) {
             forumIndexer.addQueryable(txn, forum);
         }
     }

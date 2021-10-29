@@ -12,8 +12,8 @@ import java.nio.charset.StandardCharsets;
 
 import javax.inject.Inject;
 
-import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosMessagingReceiver;
-import eu.h2020.helios_social.core.messaging_nodejslibp2p.HeliosNetworkAddress;
+import eu.h2020.helios_social.core.messaging.HeliosMessagingReceiver;
+import eu.h2020.helios_social.core.messaging.HeliosNetworkAddress;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.EventBus;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ProfileReceivedEvent;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.ProfileRequestReceivedEvent;

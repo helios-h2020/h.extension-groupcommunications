@@ -1,18 +1,9 @@
 package eu.h2020.helios_social.modules.groupcommunications.messaging;
 
 import android.app.Application;
-import android.app.DownloadManager;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.database.Cursor;
-import android.net.Uri;
-import android.webkit.MimeTypeMap;
 
 import com.google.gson.Gson;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -41,13 +32,14 @@ import eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageT
 import eu.h2020.helios_social.modules.groupcommunications.api.peer.PeerInfo;
 import eu.h2020.helios_social.modules.groupcommunications_utils.sync.event.GroupMessageReceivedEvent;
 
-import static android.content.Context.DOWNLOAD_SERVICE;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.ATTACHMENTS;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.PEER_ALIAS;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.PEER_FAKE_ID;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.PEER_FUNNY_NAME;
 import static eu.h2020.helios_social.modules.groupcommunications.api.messaging.MessageConstants.PEER_ID;
 import static java.util.logging.Logger.getLogger;
+
+import java.util.logging.Level;
 
 public class GroupMessageListener implements HeliosMessageListener {
     private static final Logger LOG =
@@ -76,10 +68,11 @@ public class GroupMessageListener implements HeliosMessageListener {
                             HeliosMessage heliosMessage) {
         GroupMessage groupMessage =
                 new Gson().fromJson(heliosMessage.getMessage(),
-                        GroupMessage.class);
+                                    GroupMessage.class);
         try {
             onReceiveGroupMessage(groupMessage);
         } catch (DbException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
             e.printStackTrace();
         }
     }
@@ -92,7 +85,7 @@ public class GroupMessageListener implements HeliosMessageListener {
                 String contextId =
                         db.getGroupContext(txn, groupMessage.getGroupId());
                 db.addMessage(txn, groupMessage, MessageState.DELIVERED,
-                        contextId, true);
+                              contextId, true);
                 GroupMessageHeader messageHeader = new GroupMessageHeader(
                         groupMessage.getId(),
                         groupMessage.getGroupId(),
@@ -105,11 +98,11 @@ public class GroupMessageListener implements HeliosMessageListener {
                         groupMessage.getPeerInfo());
                 messageTracker.trackIncomingMessage(txn, groupMessage);
                 addMessageMetadata(txn, groupMessage.getId(),
-                        groupMessage.getPeerInfo());
+                                   groupMessage.getPeerInfo());
 
                 db.commitTransaction(txn);
 
-                if (messageHeader.getMessageType() == Message.Type.IMAGES) {
+                if (messageHeader.getMessageType() == Message.Type.IMAGES || messageHeader.getMessageType() == Message.Type.FILE_ATTACHMENT) {
                     attachmentManager.downloadAttachments(groupMessage.getId(), groupMessage.getAttachments());
                     addAttachmentMetadata(groupMessage.getId(), groupMessage.getAttachments());
                 } else {
@@ -118,6 +111,7 @@ public class GroupMessageListener implements HeliosMessageListener {
                 }
             }
         } catch (FormatException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
             e.printStackTrace();
         } finally {
             db.endTransaction(txn);
@@ -132,12 +126,13 @@ public class GroupMessageListener implements HeliosMessageListener {
             BdfDictionary meta = new BdfDictionary();
             BdfList attachmentList = new BdfList();
             for (Attachment a : attachments) {
-                attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType()));
+                attachmentList.add(BdfList.of(a.getUri(), a.getUrl(), a.getContentType(), a.getAttachmentName()));
             }
             meta.put(ATTACHMENTS, attachmentList);
             db.mergeMessageMetadata(txn, messageId, encoder.encodeMetadata(meta));
             db.commitTransaction(txn);
         } catch (FormatException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
             e.printStackTrace();
         } finally {
             db.endTransaction(txn);
